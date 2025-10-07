@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
@@ -11,22 +12,50 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Book, BookDocument } from './schemas/book.schema';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { IUser } from 'src/users/users.interface';
+import { KAFKA_SERVICE } from 'src/common/constants';
+import { ClientKafka } from '@nestjs/microservices';
 
 @Injectable()
 export class BooksService {
   constructor(
     @InjectModel(Book.name) private bookModel: SoftDeleteModel<BookDocument>,
+    @Inject(KAFKA_SERVICE) private kafkaClient: ClientKafka,
   ) {}
 
-  async create(createBookDto: CreateBookDto): Promise<Book> {
+  async onModuleInit() {
+    // Subscribe to response topics if needed
+    this.kafkaClient.subscribeToResponseOf('book-log-events');
+    await this.kafkaClient.connect();
+  }
+
+  async onModuleDestroy() {
+    await this.kafkaClient.close();
+  }
+
+  async create(
+    createBookDto: CreateBookDto,
+    user?: IUser,
+    ip?: string,
+  ): Promise<Book> {
     if (!createBookDto.title?.trim()) {
       throw new BadRequestException('Title is required and cannot be empty');
     }
-    return await this.bookModel.create({
+    const newBook = await this.bookModel.create({
       ...createBookDto,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
+
+    // Emit event to Kafka
+    this.kafkaClient.emit('book-log-events', {
+      eventType: 'BOOK_CREATED',
+      timestamp: new Date().toISOString(),
+      bookId: newBook._id,
+      userId: user?._id || null,
+      ipAddress: ip || 'unknown',
+    });
+
+    return newBook;
   }
 
   async findAll(
@@ -34,6 +63,7 @@ export class BooksService {
     limit: number,
     query: string,
     user?: IUser,
+    ip?: string,
   ): Promise<{
     result: Book[];
     meta: {
@@ -67,6 +97,13 @@ export class BooksService {
       .select(projection as any)
       .exec();
 
+    this.kafkaClient.emit('book-log-events', {
+      eventType: 'BOOK_READ_ACCESS',
+      timestamp: new Date().toISOString(),
+      userId: user?._id || null,
+      ipAddress: ip || 'unknown',
+    });
+
     return {
       result,
       meta: {
@@ -78,7 +115,7 @@ export class BooksService {
     };
   }
 
-  async findOne(id: string, user?: IUser): Promise<Book> {
+  async findOne(id: string, user?: IUser, ip?: string): Promise<Book> {
     this.validateObjectId(id);
     const book = await this.bookModel
       .findById(id)
@@ -102,25 +139,61 @@ export class BooksService {
       );
     }
 
+    // Emit event to Kafka
+    this.kafkaClient.emit('book-log-events', {
+      eventType: 'BOOK_DETAIL_ACCESS',
+      timestamp: new Date().toISOString(),
+      bookId: book._id,
+      userId: user?._id || null,
+      ipAddress: ip || 'unknown',
+    });
+
     return book;
   }
 
-  async update(id: string, updateBookDto: UpdateBookDto) {
+  async update(
+    id: string,
+    updateBookDto: UpdateBookDto,
+    user?: IUser,
+    ip?: string,
+  ) {
     this.validateObjectId(id);
     if (updateBookDto.title !== undefined && !updateBookDto.title?.trim()) {
       throw new BadRequestException('Title cannot be empty');
     }
-    return await this.bookModel
+    const bookUpdated = await this.bookModel
       .updateOne(
         { _id: id },
         { ...updateBookDto, updatedAt: new Date().toISOString() },
       )
       .exec();
+
+    // Emit event to Kafka
+    this.kafkaClient.emit('book-log-events', {
+      eventType: 'BOOK_UPDATED',
+      timestamp: new Date().toISOString(),
+      bookId: id,
+      userId: user?._id || null,
+      ipAddress: ip || 'unknown',
+    });
+
+    return bookUpdated;
   }
 
-  async remove(id: string) {
+  async remove(id: string, user?: IUser, ip?: string) {
     this.validateObjectId(id);
-    return this.bookModel.softDelete({ _id: id });
+    const bookDeleted = await this.bookModel.softDelete({ _id: id });
+
+    // Emit event to Kafka
+    this.kafkaClient.emit('book-log-events', {
+      eventType: 'BOOK_DELETED',
+      timestamp: new Date().toISOString(),
+      bookId: id,
+      userId: user?._id || null,
+      ipAddress: ip || 'unknown',
+    });
+
+    return bookDeleted;
   }
 
   private validateObjectId(id: string): void {

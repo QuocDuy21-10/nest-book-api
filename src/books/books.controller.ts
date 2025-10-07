@@ -28,12 +28,14 @@ import {
   User,
 } from 'src/decorator/customize';
 import type { IUser } from 'src/users/users.interface';
+import type { Request } from 'express';
 
 @ApiTags('Books APIs')
 @Controller('books')
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
+  // Create a new book
   @Post()
   @ApiOperation({
     summary: 'Create new book',
@@ -43,10 +45,15 @@ export class BooksController {
   @ApiCreatedResponse({ type: Object, description: 'Create book' })
   @ApiBadRequestResponse({ description: 'Validation fail' })
   @ResponseMessage('Create book')
-  create(@Body() createBookDto: CreateBookDto) {
-    return this.booksService.create(createBookDto);
+  create(
+    @Body() createBookDto: CreateBookDto,
+    @User() user: IUser,
+    @Req() req: Request,
+  ) {
+    return this.booksService.create(createBookDto, user, req.ip);
   }
 
+  // Get list of books with pagination and filtering
   @OptionalAuth()
   @Get()
   @ApiOperation({
@@ -73,10 +80,12 @@ export class BooksController {
     @Query('pageSize') limit: string,
     @Query() query: string,
     @User() user: IUser,
+    @Req() req: Request,
   ) {
-    return this.booksService.findAll(+currentPage, +limit, query, user);
+    return this.booksService.findAll(+currentPage, +limit, query, user, req.ip);
   }
 
+  // Get book details by ID
   @OptionalAuth()
   @Get(':id')
   @ApiOperation({
@@ -86,10 +95,11 @@ export class BooksController {
   @ApiOkResponse({ description: 'Book detail', type: Object })
   @ApiNotFoundResponse({ description: 'Book not found' })
   @ResponseMessage('Book detail')
-  findOne(@Param('id') id: string, @User() user: IUser) {
-    return this.booksService.findOne(id, user);
+  findOne(@Param('id') id: string, @User() user: IUser, @Req() req: Request) {
+    return this.booksService.findOne(id, user, req.ip);
   }
 
+  // Update book information by ID
   @Patch(':id')
   @ApiOperation({
     summary: 'Update book',
@@ -98,10 +108,16 @@ export class BooksController {
   @ApiOkResponse({ description: 'Update book', type: Object })
   @ApiBadRequestResponse({ description: 'Validation fail' })
   @ResponseMessage('Update book')
-  update(@Param('id') id: string, @Body() updateBookDto: UpdateBookDto) {
-    return this.booksService.update(id, updateBookDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateBookDto: UpdateBookDto,
+    @User() user: IUser,
+    @Req() req: Request,
+  ) {
+    return this.booksService.update(id, updateBookDto, user, req.ip);
   }
 
+  // Delete a book by ID
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete book',
@@ -110,8 +126,8 @@ export class BooksController {
   @ApiOkResponse({ description: 'Delete book' })
   @ApiNotFoundResponse({ description: 'Book not found' })
   @ResponseMessage('Delete book successfully')
-  remove(@Param('id') id: string) {
-    this.booksService.remove(id);
+  remove(@Param('id') id: string, @User() user: IUser, @Req() req: Request) {
+    this.booksService.remove(id, user, req.ip);
     return;
   }
 }
