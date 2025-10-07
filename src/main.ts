@@ -2,15 +2,31 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { TransformInterceptor } from './core/transform.interceptor';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { KAFKA_CONSUMER_GROUP_ID } from './common/constants';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.KAFKA,
+    options: {
+      client: {
+        brokers: [
+          configService.get<string>('KAFKA_BROKER') || 'localhost:9092',
+        ],
+      },
+      consumer: {
+        groupId: KAFKA_CONSUMER_GROUP_ID,
+      },
+    },
+  });
 
   // config jwt guard global
   const reflector = app.get(Reflector);
@@ -51,6 +67,11 @@ async function bootstrap() {
     },
   });
 
+  await app.startAllMicroservices();
+  Logger.log('Microservices started successfully');
   await app.listen(configService.get<string>('PORT') || 3000);
+  Logger.log(
+    `Application is running on port ${configService.get<string>('PORT')}`,
+  );
 }
 bootstrap();

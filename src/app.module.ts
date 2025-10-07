@@ -9,6 +9,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { softDeletePlugin } from 'soft-delete-plugin-mongoose';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { KafkaModule } from './kafka/kafka.module';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { AuthModule } from './auth/auth.module';
     AuthorsModule,
     UsersModule,
     AuthModule,
+    KafkaModule,
+    LogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

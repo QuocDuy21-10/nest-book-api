@@ -1,3 +1,2 @@
-// export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
-// // export const BOOK_MODEL = 'BOOK_MODEL';
-// // export const AUTHOR_MODEL = 'AUTHOR_MODEL';
+export const KAFKA_SERVICE = 'KAFKA_SERVICE';
+export const KAFKA_CONSUMER_GROUP_ID = 'nest-book-api-logs';
