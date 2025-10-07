@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mongodb:
     image: mongo:6.0.6
@@ -10,6 +12,36 @@ services:
     volumes:
       - mongodb:/data/db
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - '2181:2181'
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+      - '29092:29092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # Fix “same port listener” error — using 2 different ports
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: unless-stopped
+
   be-nest:
     build:
       context: .
@@ -19,10 +51,14 @@ services:
       - PORT=8080
       - NODE_ENV=production
       - MONGO_URL=mongodb://root:123456@mongodb:27017/nest-book-management?authSource=admin
+      - JWT_ACCESS_TOKEN_SECRET=d3d3b7a544f849e7b2f6b8c9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9
+      - JWT_ACCESS_EXPIRES_IN=7d
+      - KAFKA_BROKER=kafka:29092
     ports:
       - '8080:8080'
     depends_on:
       - mongodb
+      - kafka
 
 volumes:
   mongodb:

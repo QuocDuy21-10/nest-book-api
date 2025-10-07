@@ -24,6 +24,7 @@ async function bootstrap() {
       },
       consumer: {
         groupId: KAFKA_CONSUMER_GROUP_ID,
+        allowAutoTopicCreation: true,
       },
     },
   });
