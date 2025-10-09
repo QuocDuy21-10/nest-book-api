@@ -7,13 +7,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { TransformInterceptor } from './core/transform.interceptor';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { KAFKA_CONSUMER_GROUP_ID } from './common/constants';
+import { KAFKA_CONSUMER_GROUP_ID, KAFKA_SERVICE } from './common/constants';
+import { LoggingInterceptor } from './core/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
 
+  // config kafka microservice
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,
     options: {
@@ -34,7 +36,10 @@ async function bootstrap() {
   app.useGlobalGuards(new JwtAuthGuard(reflector));
 
   // config transform interceptor global
-  app.useGlobalInterceptors(new TransformInterceptor(reflector));
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(app.get(KAFKA_SERVICE)),
+    new TransformInterceptor(reflector),
+  );
 
   // config validation pipe global
   app.useGlobalPipes(

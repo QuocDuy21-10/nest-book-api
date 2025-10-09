@@ -19,18 +19,7 @@ import { ClientKafka } from '@nestjs/microservices';
 export class BooksService {
   constructor(
     @InjectModel(Book.name) private bookModel: SoftDeleteModel<BookDocument>,
-    @Inject(KAFKA_SERVICE) private kafkaClient: ClientKafka,
   ) {}
-
-  async onModuleInit() {
-    // Subscribe to response topics if needed
-    this.kafkaClient.subscribeToResponseOf('book-log-events');
-    await this.kafkaClient.connect();
-  }
-
-  async onModuleDestroy() {
-    await this.kafkaClient.close();
-  }
 
   async create(
     createBookDto: CreateBookDto,
@@ -45,16 +34,6 @@ export class BooksService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-
-    // Emit event to Kafka
-    this.kafkaClient.emit('book-log-events', {
-      eventType: 'BOOK_CREATED',
-      timestamp: new Date().toISOString(),
-      bookId: newBook._id,
-      userId: user?._id || null,
-      ipAddress: ip || 'unknown',
-    });
-
     return newBook;
   }
 
@@ -78,8 +57,8 @@ export class BooksService {
     delete filter.current;
     delete filter.pageSize;
 
-    let offset = (currentPage - 1) * limit;
-    let defaultLimit = limit ? limit : 10;
+    const offset = (currentPage - 1) * limit;
+    const defaultLimit = limit ? limit : 10;
 
     if (!user) {
       filter.isPremium = false;
@@ -96,13 +75,6 @@ export class BooksService {
       .populate(population)
       .select(projection as any)
       .exec();
-
-    this.kafkaClient.emit('book-log-events', {
-      eventType: 'BOOK_READ_ACCESS',
-      timestamp: new Date().toISOString(),
-      userId: user?._id || null,
-      ipAddress: ip || 'unknown',
-    });
 
     return {
       result,
@@ -138,16 +110,6 @@ export class BooksService {
         'This book is premium. Please login to view.',
       );
     }
-
-    // Emit event to Kafka
-    this.kafkaClient.emit('book-log-events', {
-      eventType: 'BOOK_DETAIL_ACCESS',
-      timestamp: new Date().toISOString(),
-      bookId: book._id,
-      userId: user?._id || null,
-      ipAddress: ip || 'unknown',
-    });
-
     return book;
   }
 
@@ -167,32 +129,12 @@ export class BooksService {
         { ...updateBookDto, updatedAt: new Date().toISOString() },
       )
       .exec();
-
-    // Emit event to Kafka
-    this.kafkaClient.emit('book-log-events', {
-      eventType: 'BOOK_UPDATED',
-      timestamp: new Date().toISOString(),
-      bookId: id,
-      userId: user?._id || null,
-      ipAddress: ip || 'unknown',
-    });
-
     return bookUpdated;
   }
 
   async remove(id: string, user?: IUser, ip?: string) {
     this.validateObjectId(id);
     const bookDeleted = await this.bookModel.softDelete({ _id: id });
-
-    // Emit event to Kafka
-    this.kafkaClient.emit('book-log-events', {
-      eventType: 'BOOK_DELETED',
-      timestamp: new Date().toISOString(),
-      bookId: id,
-      userId: user?._id || null,
-      ipAddress: ip || 'unknown',
-    });
-
     return bookDeleted;
   }
 

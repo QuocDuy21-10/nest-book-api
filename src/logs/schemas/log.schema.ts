@@ -18,6 +18,9 @@ export class Log {
 
   @Prop()
   userId?: string;
+
+  @Prop()
+  errorMessage?: string;
 }
 
 export const LogSchema = SchemaFactory.createForClass(Log);
