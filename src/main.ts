@@ -50,6 +50,9 @@ async function bootstrap() {
     }),
   );
 
+  // config global prefix
+  app.setGlobalPrefix('api');
+
   // config swagger
   const config = new DocumentBuilder()
     .setTitle('Management Book API')
