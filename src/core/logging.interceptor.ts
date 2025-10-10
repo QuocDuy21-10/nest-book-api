@@ -81,18 +81,23 @@ export class LoggingInterceptor implements NestInterceptor {
   }
 
   private extractResourceId(url: string): string | undefined {
-    const pathOnly = url.split('?')[0];
-    const urlParts = pathOnly.split('/').filter(Boolean); // Remove empty strings
+    try {
+      const urlObj = new URL(url, 'http://localhost');
+      const pathSegments = urlObj.pathname.split('/').filter(Boolean); // filter to remove empty segments
 
-    if (urlParts.length >= 2) {
-      const lastPart = urlParts[urlParts.length - 1];
+      if (pathSegments.length >= 2) {
+        const lastPart = pathSegments[pathSegments.length - 1];
 
-      // Check if last part looks like an ObjectId or a numeric ID
-      if (/^[0-9a-f]{24}$/i.test(lastPart) || /^\d+$/.test(lastPart)) {
-        return lastPart;
+        // Check if last part looks like an ObjectId or a numeric ID
+        if (/^[0-9a-f]{24}$/i.test(lastPart) || /^\d+$/.test(lastPart)) {
+          return lastPart;
+        }
       }
+      return;
+    } catch (error) {
+      this.logger.error(`Failed to parse URL: ${error.message}`);
+      return;
     }
-    return;
   }
 
   private emitLog(log: any): void {
