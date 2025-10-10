@@ -8,6 +8,8 @@ import {
   Delete,
   Query,
   Req,
+  UseInterceptors,
+  Inject,
 } from '@nestjs/common';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
@@ -29,11 +31,18 @@ import {
 } from 'src/decorator/customize';
 import type { IUser } from 'src/users/users.interface';
 import type { Request } from 'express';
+import { LoggingInterceptor } from 'src/core/logging.interceptor';
+import { KAFKA_SERVICE } from 'src/common/constants';
+import { ClientKafka } from '@nestjs/microservices';
 
 @ApiTags('Books APIs')
 @Controller('books')
+@UseInterceptors(LoggingInterceptor)
 export class BooksController {
-  constructor(private readonly booksService: BooksService) {}
+  constructor(
+    private readonly booksService: BooksService,
+    @Inject(KAFKA_SERVICE) private kafkaClient: ClientKafka,
+  ) {}
 
   // Create a new book
   @Post()
