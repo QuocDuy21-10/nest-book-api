@@ -24,6 +24,27 @@ export class Book {
   isPremium: boolean;
 
   @Prop()
+  externalId?: string;
+
+  @Prop()
+  originalPrice?: number;
+
+  @Prop()
+  promotionalPrice?: number;
+
+  @Prop()
+  quantitySold?: number;
+
+  @Prop()
+  bookImage?: string;
+
+  @Prop()
+  source?: string;
+
+  @Prop({ default: false })
+  isFromCrawler?: boolean;
+
+  @Prop()
   createdAt?: Date;
 
   @Prop()
@@ -37,3 +58,6 @@ export class Book {
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);
+
+// Create index on externalId and source to check for duplicates
+BookSchema.index({ externalId: 1, source: 1 }, { unique: true, sparse: true });
