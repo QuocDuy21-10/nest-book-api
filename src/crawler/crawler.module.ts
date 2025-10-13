@@ -3,12 +3,19 @@ import { CrawlerService } from './crawler.service';
 import { CrawlerController } from './crawler.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Book, BookSchema } from 'src/books/schemas/book.schema';
+import { Job, JobSchema } from 'src/jobs/schemas/job.schema';
+import { KafkaModule } from 'src/kafka/kafka.module';
+import { JobsModule } from 'src/jobs/jobs.module';
+import { CrawlListenerService } from './crawl-listener.service';
 
 @Module({
   imports: [
+    KafkaModule,
+    JobsModule,
+    MongooseModule.forFeature([{ name: Job.name, schema: JobSchema }]),
     MongooseModule.forFeature([{ name: Book.name, schema: BookSchema }]),
   ],
-  controllers: [CrawlerController],
+  controllers: [CrawlerController, CrawlListenerService],
   providers: [CrawlerService],
   exports: [CrawlerService],
 })
