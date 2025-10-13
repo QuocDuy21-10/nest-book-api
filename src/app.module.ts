@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { KafkaModule } from './kafka/kafka.module';
 import { LogsModule } from './logs/logs.module';
 import { CrawlerModule } from './crawler/crawler.module';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { CrawlerModule } from './crawler/crawler.module';
     KafkaModule,
     LogsModule,
     CrawlerModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
