@@ -7,6 +7,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { JobsService } from 'src/jobs/jobs.service';
 
 @ApiTags('Crawler API')
 @Controller('crawler')
@@ -19,9 +20,17 @@ export class CrawlerController {
     summary: 'Crawl Tiki books',
     description: 'Trigger crawler to fetch books from Tiki literature category',
   })
+  @ApiOkResponse({
+    description: 'Crawl job created successfully',
+    schema: {
+      example: {
+        jobId: '550e8400-e29b-41d4-a716-446655440000',
+      },
+    },
+  })
   @ApiInternalServerErrorResponse({ description: 'Crawling failed' })
   @ResponseMessage('Crawling Tiki books')
-  async crawlTikiBooks() {
-    return this.crawlerService.crawlTikiBooks();
+  async triggerCrawl() {
+    return this.crawlerService.triggerCrawl();
   }
 }
