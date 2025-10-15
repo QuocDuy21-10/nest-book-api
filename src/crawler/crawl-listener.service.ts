@@ -1,6 +1,7 @@
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { CrawlerService } from './crawler.service';
+import { CrawlerService } from './services/crawler.service';
+import { JOB_TYPE } from 'src/common/constants';
 
 @Controller()
 export class CrawlListenerService {
@@ -16,7 +17,7 @@ export class CrawlListenerService {
     try {
       this.logger.log(`Received crawl task: ${jobId} (type: ${type})`);
 
-      if (type === 'CRAWL_TIKI_BOOKS') {
+      if (type === JOB_TYPE) {
         await this.crawlerService.crawlTikiBooks(jobId);
       }
 
