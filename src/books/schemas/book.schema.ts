@@ -14,11 +14,14 @@ export class Book {
   @Prop()
   publishedAt: string;
 
-  @Prop({
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: Author.name }],
-    required: true,
-  })
-  authors: mongoose.Schema.Types.ObjectId[];
+  // @Prop({
+  //   type: [{ type: mongoose.Schema.Types.ObjectId, ref: Author.name }],
+  //   required: true,
+  // })
+  // authors: mongoose.Schema.Types.ObjectId[];
+
+  @Prop({ type: [{ type: String, ref: Author.name }], required: true })
+  authors: string[];
 
   @Prop({ default: false })
   isPremium: boolean;
