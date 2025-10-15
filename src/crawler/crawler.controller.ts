@@ -1,5 +1,5 @@
 import { Controller, Post } from '@nestjs/common';
-import { CrawlerService } from './crawler.service';
+import { CrawlerService } from './services/crawler.service';
 import { Public, ResponseMessage } from 'src/decorator/customize';
 import {
   ApiInternalServerErrorResponse,

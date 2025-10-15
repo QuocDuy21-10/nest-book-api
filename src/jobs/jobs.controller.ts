@@ -1,12 +1,19 @@
 import {
   Controller,
+  Delete,
   Get,
   InternalServerErrorException,
   Param,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { Public, ResponseMessage } from 'src/decorator/customize';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @ApiTags('Job APIs')
 @Controller('jobs')
@@ -37,5 +44,26 @@ export class JobsController {
   @ResponseMessage('Jobs retrieved')
   async getAllJobs() {
     return this.jobService.getAllJobs();
+  }
+
+  @Delete(':id/cancel')
+  @Public()
+  @ApiOperation({
+    summary: 'Cancel a job',
+    description: 'Cancel a pending or processing job',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Job ID to cancel',
+    example: '67890abcdef1234567890123',
+  })
+  @ApiOkResponse({
+    description: 'Job cancelled successfully',
+  })
+  @ApiNotFoundResponse({ description: 'Job not found or cannot be cancelled' })
+  @ResponseMessage('Job cancelled')
+  async cancelJob(@Param('id') jobId: string) {
+    await this.jobService.cancelJob(jobId);
+    return { cancelled: true };
   }
 }

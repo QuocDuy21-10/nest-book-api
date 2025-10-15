@@ -106,6 +106,33 @@ export class JobsService {
     return await this.jobModel.find().sort({ createdAt: -1 }).limit(10).exec();
   }
 
+  async cancelJob(id: string): Promise<void> {
+    this.validateObjectId(id);
+
+    const result = await this.jobModel
+      .updateOne(
+        {
+          _id: id,
+          status: { $in: [JobStatus.PENDING, JobStatus.PROCESSING] },
+        },
+        {
+          $set: {
+            status: JobStatus.FAILED,
+            completedAt: new Date(),
+            errorMessage: 'Job cancelled by user',
+            updatedAt: new Date(),
+          },
+        },
+      )
+      .exec();
+
+    if (result.modifiedCount === 0) {
+      throw new BadRequestException('Job cannot be cancelled (not running)');
+    }
+
+    this.logger.log(`Job cancelled: ${id}`);
+  }
+
   private validateObjectId(id: string): void {
     if (!id?.trim() || !mongoose.Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid ID format');
