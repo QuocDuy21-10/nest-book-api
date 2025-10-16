@@ -8,14 +8,26 @@ export class Author {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
-  bio: string;
+  @Prop()
+  bio?: string;
 
   @Prop()
   birthDate: string;
 
   @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Book' }] })
   books?: mongoose.Schema.Types.ObjectId[];
+
+  @Prop({ unique: true, sparse: true })
+  externalId: string;
+
+  @Prop()
+  slug?: string;
+
+  @Prop()
+  source?: string;
+
+  @Prop({ default: false })
+  isFromCrawler: boolean;
 
   @Prop()
   createdAt?: Date;
@@ -31,3 +43,10 @@ export class Author {
 }
 
 export const AuthorSchema = SchemaFactory.createForClass(Author);
+
+AuthorSchema.index(
+  { externalId: 1, source: 1 },
+  { unique: true, sparse: true },
+);
+AuthorSchema.index({ name: 1 });
+AuthorSchema.index({ isFromCrawler: 1 });

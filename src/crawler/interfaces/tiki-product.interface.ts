@@ -2,6 +2,12 @@ export interface TikiProductQuantitySold {
   value: number;
 }
 
+export interface TikiAuthorData {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface TikiProductListItem {
   id: number;
   sku?: string;
@@ -18,5 +24,5 @@ export interface TikiProductDetail extends TikiProductListItem {
   description?: string;
   short_description?: string;
   all_time_quantity_sold?: number;
-  authors?: any;
+  authors?: TikiAuthorData[];
 }

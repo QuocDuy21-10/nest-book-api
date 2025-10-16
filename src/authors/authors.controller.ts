@@ -20,7 +20,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { ResponseMessage } from 'src/decorator/customize';
+import { Public, ResponseMessage } from 'src/decorator/customize';
 
 @ApiTags('Authors APIs')
 @Controller('authors')
@@ -39,6 +39,7 @@ export class AuthorsController {
     return this.authorsService.create(createAuthorDto);
   }
 
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'Get list of authors',
@@ -54,6 +55,7 @@ export class AuthorsController {
     required: false,
     type: Number,
   })
+  @ApiOkResponse({ description: 'List of authors' })
   @ResponseMessage('List of authors')
   findAll(
     @Query('current') currentPage: string,
@@ -63,6 +65,7 @@ export class AuthorsController {
     return this.authorsService.findAll(+currentPage, +limit, query);
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({
     summary: 'Get author detail',
