@@ -8,7 +8,6 @@ import { TikiProductListItem } from '../interfaces/tiki-product.interface';
 import { JOB_TYPE, KAFKA_SERVICE } from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
 import mongoose from 'mongoose';
-import { ProductDetailService } from './product-detail.service';
 
 @Injectable()
 export class CrawlerService {
@@ -18,15 +17,13 @@ export class CrawlerService {
     'https://tiki.vn/api/personalish/v1/blocks/listings';
   private readonly TIKI_CATEGORY = '839'; // Literature category
   private readonly BOOKS_PER_PAGE = 40;
-  private readonly MAX_PAGES = 25;
+  private readonly MAX_PAGES = 3;
   private readonly SOURCE_NAME = 'Tiki';
   private readonly BULK_BATCH_SIZE = 100;
-  private readonly DETAIL_BATCH_SIZE = 40; // For concurrent detail requests
 
   constructor(
     @InjectModel(Book.name) private bookModel: SoftDeleteModel<BookDocument>,
     private jobService: JobsService,
-    private bookDetailService: ProductDetailService,
     @Inject(KAFKA_SERVICE) private kafkaClient: ClientKafka,
   ) {
     this.axiosInstance = axios.create({
@@ -41,24 +38,23 @@ export class CrawlerService {
     const jobId = await this.jobService.createJob(JOB_TYPE);
     this.logger.log(`Crawler job triggered: ${jobId}`);
 
-    // Emit event to Kafka
-    this.kafkaClient.emit('crawl-tasks', {
+    // Emit event to Kafka for list crawling
+    this.kafkaClient.emit('crawl-product-list', {
       jobId,
       type: JOB_TYPE,
       timestamp: new Date().toISOString(),
     });
-    return {
-      jobId,
-    };
+
+    return { jobId };
   }
 
   async crawlTikiBooks(jobId: string): Promise<void> {
     try {
       await this.jobService.startJob(jobId);
 
-      let totalBooks = 0;
-      let newBooks = 0;
-      let duplicates = 0;
+      let totalProducts = 0;
+      let newProducts = 0;
+      let updatedProducts = 0;
       let errors = 0;
 
       for (let page = 1; page <= this.MAX_PAGES; page++) {
@@ -78,26 +74,26 @@ export class CrawlerService {
           for (let i = 0; i < products.length; i += this.BULK_BATCH_SIZE) {
             const batch = products.slice(i, i + this.BULK_BATCH_SIZE);
 
-            const { newCount, duplicateCount, errorCount } =
-              await this.processBatchWithDetails(batch, jobId);
+            const { newCount, updatedCount, errorCount } =
+              await this.saveProductOverview(batch, jobId);
 
-            newBooks += newCount;
-            duplicates += duplicateCount;
+            newProducts += newCount;
+            updatedProducts += updatedCount;
             errors += errorCount;
-            totalBooks += batch.length;
+            totalProducts += batch.length;
 
             // Update job progress
             await this.jobService.updateJobProgress(
               jobId,
-              totalBooks,
+              totalProducts,
               this.MAX_PAGES * this.BOOKS_PER_PAGE,
-              newBooks,
-              duplicates,
+              newProducts,
+              updatedProducts,
               errors,
             );
 
             this.logger.debug(
-              `[${jobId}] Batch processed: New=${newCount}, Duplicates=${duplicateCount}, Errors=${errorCount}`,
+              `[${jobId}] Batch processed: New=${newCount}, Updated=${updatedCount}, Errors=${errorCount}`,
             );
           }
 
@@ -112,9 +108,14 @@ export class CrawlerService {
         }
       }
 
-      await this.jobService.completeJob(jobId, newBooks, duplicates, errors);
+      await this.jobService.completeJob(
+        jobId,
+        newProducts,
+        updatedProducts,
+        errors,
+      );
       this.logger.log(
-        `[${jobId}] Crawling completed: Total=${totalBooks}, New=${newBooks}, Duplicates=${duplicates}, Errors=${errors}`,
+        `[${jobId}] List crawling completed: Total=${totalProducts}, New=${newProducts}, Updated=${updatedProducts}, Errors=${errors}`,
       );
     } catch (error) {
       await this.jobService.failJob(jobId, error.message);
@@ -155,56 +156,32 @@ export class CrawlerService {
     }
   }
 
-  private async processBatchWithDetails(
+  // Save basic product WITHOUT authors (API list)
+  private async saveProductOverview(
     products: TikiProductListItem[],
     jobId: string,
   ): Promise<{
     newCount: number;
-    duplicateCount: number;
+    updatedCount: number;
     errorCount: number;
   }> {
     try {
-      const productsForDetail = products.map((product) => ({
-        id: product.id,
-      }));
-
-      this.logger.debug(
-        `[${jobId}] Fetching details for ${productsForDetail.length} products`,
-      );
-
-      // Fetch book details
-      const detailsMap = await this.bookDetailService.fetchBookDetails(
-        productsForDetail,
-        this.DETAIL_BATCH_SIZE,
-        300,
-      );
       const bulkOps = products
         .map((product) => {
           try {
-            const detail = detailsMap.get(product.id);
-
-            // Merge basic info with detailed info
+            // Only save basic overview data - NO authors yet
             const bookData = {
-              title: detail?.name || product.name,
-              description:
-                detail?.description || detail?.short_description || '',
+              title: product.name,
+              description: '', // Empty initially, filled in detail crawl
               externalId: product.id.toString(),
               source: this.SOURCE_NAME,
-              originalPrice:
-                detail?.original_price ||
-                product.original_price ||
-                product.list_price ||
-                0,
-              promotionalPrice: detail?.price || product.price || 0,
-              quantitySold:
-                detail?.all_time_quantity_sold ||
-                detail?.quantity_sold?.value ||
-                product.quantity_sold?.value ||
-                0,
-              bookImage: detail?.thumbnail_url || product.thumbnail_url || null,
-              authors: detail?.authors || [],
+              originalPrice: product.original_price || product.list_price || 0,
+              promotionalPrice: product.price || 0,
+              quantitySold: product.quantity_sold?.value || 0,
+              bookImage: product.thumbnail_url || null,
               isFromCrawler: true,
               isPremium: false,
+              needsDetailCrawl: true, // Flag for detail crawling
               updatedAt: new Date(),
             };
 
@@ -218,6 +195,8 @@ export class CrawlerService {
                   $set: bookData,
                   $setOnInsert: {
                     createdAt: new Date(),
+                    detailCrawlAttempts: 0,
+                    authors: [],
                   },
                 },
                 upsert: true,
@@ -230,31 +209,52 @@ export class CrawlerService {
             return null;
           }
         })
-        .filter((op) => op !== null); // Remove failed operations
+        .filter((op) => op !== null);
 
-      // Execute bulk operations and analyze results
       if (bulkOps.length === 0) {
-        return { newCount: 0, duplicateCount: 0, errorCount: products.length };
+        return { newCount: 0, updatedCount: 0, errorCount: products.length };
       }
 
       const result = await this.bookModel.bulkWrite(bulkOps);
 
       const newCount = result.upsertedCount;
-      const duplicateCount = result.modifiedCount;
+      const updatedCount = result.modifiedCount;
       const errorCount = products.length - bulkOps.length;
 
+      // Emit detail crawl tasks for each product
+      products.forEach((product) => {
+        this.emitDetailCrawlTask(product.id, jobId);
+      });
+
       this.logger.debug(
-        `[${jobId}] Bulk write completed: ${bulkOps.length} operations (Inserted: ${newCount}, Updated: ${duplicateCount})`,
+        `[${jobId}] Overview saved: ${bulkOps.length} products (New: ${newCount}, Updated: ${updatedCount}). Emitted ${products.length} detail crawl tasks.`,
       );
 
-      return { newCount, duplicateCount, errorCount };
+      return { newCount, updatedCount, errorCount };
     } catch (error) {
       this.logger.error(
         `[${jobId}] Batch processing failed: ${error.message}`,
         error.stack,
       );
 
-      return { newCount: 0, duplicateCount: 0, errorCount: products.length };
+      return { newCount: 0, updatedCount: 0, errorCount: products.length };
+    }
+  }
+
+  // Emit detail crawl task
+  private emitDetailCrawlTask(productId: number, jobId: string): void {
+    try {
+      this.kafkaClient.emit('crawl-product-detail', {
+        productId,
+        jobId,
+        source: this.SOURCE_NAME,
+        timestamp: new Date().toISOString(),
+        retryCount: 0,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[${jobId}] Failed to emit detail crawl task for product ${productId}: ${error.message}`,
+      );
     }
   }
 

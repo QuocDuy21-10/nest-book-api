@@ -14,14 +14,11 @@ export class Book {
   @Prop()
   publishedAt: string;
 
-  // @Prop({
-  //   type: [{ type: mongoose.Schema.Types.ObjectId, ref: Author.name }],
-  //   required: true,
-  // })
-  // authors: mongoose.Schema.Types.ObjectId[];
-
-  @Prop({ type: [{ type: String, ref: Author.name }], required: true })
-  authors: string[];
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: Author.name }],
+    required: true,
+  })
+  authors: mongoose.Schema.Types.ObjectId[];
 
   @Prop({ default: false })
   isPremium: boolean;
@@ -29,13 +26,13 @@ export class Book {
   @Prop()
   externalId?: string;
 
-  @Prop()
+  @Prop({ type: Number, default: 0 })
   originalPrice?: number;
 
-  @Prop()
+  @Prop({ type: Number, default: 0 })
   promotionalPrice?: number;
 
-  @Prop()
+  @Prop({ type: Number, default: 0 })
   quantitySold?: number;
 
   @Prop()
@@ -46,6 +43,24 @@ export class Book {
 
   @Prop({ default: false })
   isFromCrawler?: boolean;
+
+  @Prop({ default: true })
+  needsDetailCrawl: boolean;
+
+  @Prop({ type: Number, default: 0 })
+  detailCrawlAttempts: number;
+
+  @Prop({ type: Date })
+  lastDetailCrawlAt: Date;
+
+  @Prop()
+  lastDetailCrawlError?: string;
+
+  @Prop({ default: false })
+  detailCrawlSuccess: boolean;
+
+  @Prop({ default: false })
+  detailCrawlPermanentlyFailed: boolean;
 
   @Prop()
   createdAt?: Date;
@@ -64,3 +79,7 @@ export const BookSchema = SchemaFactory.createForClass(Book);
 
 // Create index on externalId and source to check for duplicates
 BookSchema.index({ externalId: 1, source: 1 }, { unique: true, sparse: true });
+
+BookSchema.index({ needsDetailCrawl: 1, detailCrawlPermanentlyFailed: 1 });
+BookSchema.index({ lastDetailCrawlAt: 1 });
+BookSchema.index({ isFromCrawler: 1 });

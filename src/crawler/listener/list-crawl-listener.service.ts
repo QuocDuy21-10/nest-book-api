@@ -1,6 +1,6 @@
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { CrawlerService } from './services/crawler.service';
+import { CrawlerService } from '../services/crawler.service';
 import { JOB_TYPE } from 'src/common/constants';
 
 @Controller()
@@ -11,20 +11,20 @@ export class CrawlListenerService {
     this.logger.log('CrawlListenerService initialized');
   }
 
-  @EventPattern('crawl-tasks')
+  @EventPattern('crawl-product-list')
   async handleCrawlTask(@Payload() message: any) {
     const { jobId, type } = message;
     try {
-      this.logger.log(`Received crawl task: ${jobId} (type: ${type})`);
+      this.logger.log(`Received list crawl task: ${jobId} (type: ${type})`);
 
       if (type === JOB_TYPE) {
         await this.crawlerService.crawlTikiBooks(jobId);
       }
 
-      this.logger.log(`Crawl task completed: ${jobId}`);
+      this.logger.log(`List crawl task completed: ${jobId}`);
     } catch (error) {
       this.logger.error(
-        `Error processing crawl task ${jobId}: ${error.message}`,
+        `Error processing list crawl task ${jobId}: ${error.message}`,
         error.stack,
       );
     }
