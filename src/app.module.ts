@@ -13,9 +13,12 @@ import { KafkaModule } from './kafka/kafka.module';
 import { LogsModule } from './logs/logs.module';
 import { CrawlerModule } from './crawler/crawler.module';
 import { JobsModule } from './jobs/jobs.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { PriceUpdateModule } from './price-updates/price-updates.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -39,6 +42,7 @@ import { JobsModule } from './jobs/jobs.module';
     LogsModule,
     CrawlerModule,
     JobsModule,
+    PriceUpdateModule,
   ],
   controllers: [AppController],
   providers: [AppService],
