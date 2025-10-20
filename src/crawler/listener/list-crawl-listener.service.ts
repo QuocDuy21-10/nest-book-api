@@ -1,7 +1,7 @@
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { CrawlerService } from '../services/crawler.service';
-import { JOB_TYPE } from 'src/common/constants';
+import { CRAWL_PRODUCT_LIST, JOB_TYPE } from 'src/common/constants';
 
 @Controller()
 export class CrawlListenerService {
@@ -11,7 +11,7 @@ export class CrawlListenerService {
     this.logger.log('CrawlListenerService initialized');
   }
 
-  @EventPattern('crawl-product-list')
+  @EventPattern(CRAWL_PRODUCT_LIST)
   async handleCrawlTask(@Payload() message: any) {
     const { jobId, type } = message;
     try {

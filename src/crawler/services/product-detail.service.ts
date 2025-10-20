@@ -7,7 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Book, BookDocument } from 'src/books/schemas/book.schema';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
-import { KAFKA_SERVICE } from 'src/common/constants';
+import { CRAWL_PRODUCT_DETAIL, KAFKA_SERVICE } from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
 import { AuthorsService } from 'src/authors/authors.service';
 import mongoose from 'mongoose';
@@ -275,7 +275,7 @@ export class ProductDetailCrawlerService {
     retryCount: number,
   ): void {
     try {
-      this.kafkaClient.emit('crawl-product-detail', {
+      this.kafkaClient.emit(CRAWL_PRODUCT_DETAIL, {
         productId,
         jobId,
         source,
@@ -333,7 +333,7 @@ export class ProductDetailCrawlerService {
             continue;
           }
 
-          this.kafkaClient.emit('crawl-product-detail', {
+          this.kafkaClient.emit(CRAWL_PRODUCT_DETAIL, {
             productId,
             jobId: 'batch-recrawl',
             source: product.source,

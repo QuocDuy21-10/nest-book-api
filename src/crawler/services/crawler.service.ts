@@ -5,7 +5,12 @@ import axios, { AxiosInstance } from 'axios';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { Book, BookDocument } from 'src/books/schemas/book.schema';
 import { TikiProductListItem } from '../interfaces/tiki-product.interface';
-import { JOB_TYPE, KAFKA_SERVICE } from 'src/common/constants';
+import {
+  CRAWL_PRODUCT_DETAIL,
+  CRAWL_PRODUCT_LIST,
+  JOB_TYPE,
+  KAFKA_SERVICE,
+} from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
 import mongoose from 'mongoose';
 
@@ -39,7 +44,7 @@ export class CrawlerService {
     this.logger.log(`Crawler job triggered: ${jobId}`);
 
     // Emit event to Kafka for list crawling
-    this.kafkaClient.emit('crawl-product-list', {
+    this.kafkaClient.emit(CRAWL_PRODUCT_LIST, {
       jobId,
       type: JOB_TYPE,
       timestamp: new Date().toISOString(),
@@ -243,19 +248,13 @@ export class CrawlerService {
 
   // Emit detail crawl task
   private emitDetailCrawlTask(productId: number, jobId: string): void {
-    try {
-      this.kafkaClient.emit('crawl-product-detail', {
-        productId,
-        jobId,
-        source: this.SOURCE_NAME,
-        timestamp: new Date().toISOString(),
-        retryCount: 0,
-      });
-    } catch (error) {
-      this.logger.error(
-        `[${jobId}] Failed to emit detail crawl task for product ${productId}: ${error.message}`,
-      );
-    }
+    this.kafkaClient.emit(CRAWL_PRODUCT_DETAIL, {
+      productId,
+      jobId,
+      source: this.SOURCE_NAME,
+      timestamp: new Date().toISOString(),
+      retryCount: 0,
+    });
   }
 
   private delay(ms: number): Promise<void> {
