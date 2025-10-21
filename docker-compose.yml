@@ -13,13 +13,33 @@ services:
     volumes:
       - mongodb:/data/db
       - ./mongo-keyfile:/data/mongo-keyfile:ro
-    healthcheck:
-      test: mongosh --eval 'db.runCommand("ping").ok' --quiet
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
     restart: unless-stopped
+
+  # Helper container to initialize replica set
+  mongo-setup:
+    image: mongo:7.0
+    container_name: mongo-setup
+    depends_on:
+      - mongodb
+    entrypoint: >
+      bash -c "
+        sleep 10 &&
+        mongosh --host mongodb:27017 -u root -p 123456 --authenticationDatabase admin --eval '
+          try {
+            var status = rs.status();
+            print(\"Replica set already initialized\");
+          } catch (err) {
+            if (err.message.includes(\"no replset config\")) {
+              rs.initiate({
+                _id: \"rs0\",
+                members: [{ _id: 0, host: \"mongodb:27017\" }]
+              });
+              print(\"Replica set initialized successfully\");
+            }
+          }
+        '
+      "
+    restart: 'no'
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
@@ -42,11 +62,8 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
-      # Fix "same port listener" error — using 2 different ports
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -67,10 +84,9 @@ services:
     ports:
       - '8080:8080'
     depends_on:
-      mongodb:
-        condition: service_healthy
-      kafka:
-        condition: service_started
+      - mongodb
+      - mongo-setup
+      - kafka
     restart: unless-stopped
 
 volumes:
