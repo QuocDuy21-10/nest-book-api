@@ -16,52 +16,38 @@ export class PriceHistoryService {
     private priceHistoryModel: SoftDeleteModel<PriceHistoryDocument>,
   ) {}
 
-  async createPriceRecord(data: {
-    bookId: mongoose.Types.ObjectId;
-    externalId: string;
-    source: string;
-    originalPrice: number;
-    promotionalPrice: number;
-    crawlJobId?: string;
-    status?: string;
-    errorMessage?: string;
-  }): Promise<PriceHistory> {
-    try {
-      // Lấy giá gần nhất để tính price change
-      const lastPrice = await this.getLatestPrice(data.bookId);
+  // async createPriceRecord(data: {
+  //   bookId: mongoose.Types.ObjectId;
+  //   externalId: string;
+  //   source: string;
+  //   originalPrice: number;
+  //   promotionalPrice: number;
+  //   priceChange?: number;
+  //   priceChangePercentage?: number;
+  //   crawlJobId?: string;
+  //   status?: string;
+  //   errorMessage?: string;
+  // }): Promise<PriceHistory> {
+  //   try {
+  //     const priceRecord = await this.priceHistoryModel.create({
+  //       ...data,
+  //       recordedAt: new Date(),
+  //       status: data.status || 'SUCCESS',
+  //     });
 
-      let priceChange: number | undefined;
-      let priceChangePercentage: number | undefined;
+  //     this.logger.debug(
+  //       `Price record created for book ${data.bookId}: ${data.promotionalPrice}`,
+  //     );
 
-      if (lastPrice) {
-        priceChange = data.promotionalPrice - lastPrice.promotionalPrice;
-        if (lastPrice.promotionalPrice > 0) {
-          priceChangePercentage =
-            (priceChange / lastPrice.promotionalPrice) * 100;
-        }
-      }
-
-      const priceRecord = await this.priceHistoryModel.create({
-        ...data,
-        priceChange,
-        priceChangePercentage,
-        recordedAt: new Date(),
-        status: data.status || 'SUCCESS',
-      });
-
-      this.logger.debug(
-        `Price record created for book ${data.bookId}: ${data.promotionalPrice} (change: ${priceChange || 0})`,
-      );
-
-      return priceRecord;
-    } catch (error) {
-      this.logger.error(
-        `Failed to create price record for book ${data.bookId}: ${error.message}`,
-        error.stack,
-      );
-      throw error;
-    }
-  }
+  //     return priceRecord;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Failed to create price record for book ${data.bookId}: ${error.message}`,
+  //       error.stack,
+  //     );
+  //     throw error;
+  //   }
+  // }
 
   async getLatestPrice(
     bookId: mongoose.Types.ObjectId,
@@ -69,6 +55,9 @@ export class PriceHistoryService {
     return this.priceHistoryModel
       .findOne({ bookId, status: 'SUCCESS' })
       .sort({ recordedAt: -1 })
+      .select(
+        'promotionalPrice originalPrice priceChange priceChangePercentage',
+      )
       .lean();
   }
 
