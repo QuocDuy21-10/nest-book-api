@@ -2,8 +2,9 @@ version: '3.8'
 
 services:
   mongodb:
-    image: mongo:6.0.6
+    image: mongo:7.0
     container_name: nest-mongodb
+    command: mongod --replSet rs0 --bind_ip_all --keyFile /data/mongo-keyfile
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 123456
@@ -11,6 +12,14 @@ services:
       - '27017:27017'
     volumes:
       - mongodb:/data/db
+      - ./mongo-keyfile:/data/mongo-keyfile:ro
+    healthcheck:
+      test: mongosh --eval 'db.runCommand("ping").ok' --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
@@ -20,6 +29,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - '2181:2181'
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
@@ -33,7 +43,7 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
-      # Fix “same port listener” error — using 2 different ports
+      # Fix "same port listener" error — using 2 different ports
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
 
@@ -50,15 +60,18 @@ services:
     environment:
       - PORT=8080
       - NODE_ENV=production
-      - MONGO_URL=mongodb://root:123456@mongodb:27017/nest-book-management?authSource=admin
+      - MONGO_URL=mongodb://root:123456@mongodb:27017/nest-book-management?authSource=admin&replicaSet=rs0&directConnection=true
       - JWT_ACCESS_TOKEN_SECRET=d3d3b7a544f849e7b2f6b8c9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9
       - JWT_ACCESS_EXPIRES_IN=7d
       - KAFKA_BROKER=kafka:29092
     ports:
       - '8080:8080'
     depends_on:
-      - mongodb
-      - kafka
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   mongodb:
