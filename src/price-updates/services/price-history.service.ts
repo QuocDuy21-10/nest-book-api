@@ -63,12 +63,13 @@ export class PriceHistoryService {
 
   async getPriceHistory(
     bookId: mongoose.Types.ObjectId,
-    limit: number = 30,
+    limit?: number,
   ): Promise<PriceHistory[]> {
+    const defaultLimit = limit ? limit : 10;
     return this.priceHistoryModel
       .find({ bookId })
       .sort({ recordedAt: -1 })
-      .limit(limit)
+      .limit(defaultLimit)
       .lean();
   }
 }

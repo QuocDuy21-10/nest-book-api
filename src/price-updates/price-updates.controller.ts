@@ -18,7 +18,7 @@ import {
   ApiQuery,
   ApiBody,
 } from '@nestjs/swagger';
-import { Public } from 'src/decorator/customize';
+import { Public, ResponseMessage } from 'src/decorator/customize';
 
 @ApiTags('Price Updates APIs')
 @Public()
@@ -42,6 +42,7 @@ export class PriceUpdateController {
       example: {
         message: 'Price update job triggered successfully',
         jobId: '67123abc456def789012345',
+        totalBooks: 100,
       },
     },
   })
@@ -49,11 +50,13 @@ export class PriceUpdateController {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     description: 'Failed to trigger price update',
   })
+  @ResponseMessage('Price update job triggered successfully')
   async triggerPriceUpdate() {
     const result = await this.priceUpdateScheduler.triggerPriceUpdate();
     return {
       message: 'Price update job triggered successfully',
       jobId: result.jobId,
+      totalBooks: result.totalBooks,
     };
   }
 
@@ -163,13 +166,18 @@ export class PriceUpdateController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Invalid book ID format',
   })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Book not found',
+  })
+  @ResponseMessage('Price history retrieved successfully')
   async getPriceHistory(
     @Param('bookId') bookId: string,
     @Query('limit') limit?: number,
   ) {
     const history = await this.priceHistoryService.getPriceHistory(
       new mongoose.Types.ObjectId(bookId),
-      limit || 30,
+      limit,
     );
 
     return {

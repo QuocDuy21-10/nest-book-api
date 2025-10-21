@@ -9,6 +9,7 @@ import {
   PriceHistoryDocument,
 } from '../schemas/price-history.schema';
 import { PriceUpdateMessage } from '../interfaces/price-update.interface';
+import { PriceHistoryStatus } from '../enums/price-history-status.enum';
 
 @Injectable()
 export class PriceUpdateConsumerService {
@@ -70,30 +71,14 @@ export class PriceUpdateConsumerService {
     originalPrice: number,
     jobId: string,
   ): Promise<void> {
-    // Start transaction
     const session = await this.connection.startSession();
 
     try {
       await session.withTransaction(async () => {
         const bookObjectId = new mongoose.Types.ObjectId(bookId);
 
-        const currentBook = await this.bookModel
-          .findById(bookObjectId)
-          .select('promotionalPrice originalPrice')
-          .session(session)
-          .lean();
-
-        if (!currentBook) {
-          this.logger.warn(`[${jobId}] Book ${bookId} not found`);
-          throw new Error(`Book ${bookId} not found`);
-        }
-
-        const oldPrice = currentBook.promotionalPrice || 0;
-        const priceChanged = oldPrice !== newPrice;
-
-        // Get last price to calculate priceChange (in transaction)
         const lastPrice = await this.priceHistoryModel
-          .findOne({ bookId: bookObjectId, status: 'SUCCESS' })
+          .findOne({ bookId: bookObjectId, status: PriceHistoryStatus.SUCCESS })
           .sort({ recordedAt: -1 })
           .select('promotionalPrice')
           .session(session)
@@ -110,21 +95,27 @@ export class PriceUpdateConsumerService {
           }
         }
 
-        // TRANSACTION STEP 1: Update Book price
-        const updateResult = await this.bookModel.updateOne(
-          { _id: bookObjectId },
-          {
-            $set: {
-              promotionalPrice: newPrice,
-              originalPrice: originalPrice,
-              updatedAt: new Date(),
+        // TRANSACTION STEP 1: Update book
+        const updatedBook = await this.bookModel
+          .findByIdAndUpdate(
+            bookObjectId,
+            {
+              $set: {
+                promotionalPrice: newPrice,
+                originalPrice: originalPrice,
+                updatedAt: new Date(),
+              },
             },
-          },
-          { session },
-        );
+            {
+              session,
+              new: false, // return old document to get old price for logging
+              select: 'promotionalPrice originalPrice',
+            },
+          )
+          .lean();
 
-        if (updateResult.matchedCount === 0) {
-          throw new Error(`Book ${bookId} not found during update`);
+        if (!updatedBook) {
+          throw new Error(`Book ${bookId} not found`);
         }
 
         // TRANSACTION STEP 2: Create price history record
@@ -140,11 +131,15 @@ export class PriceUpdateConsumerService {
               priceChangePercentage,
               recordedAt: new Date(),
               crawlJobId: jobId,
-              status: 'SUCCESS',
+              status: PriceHistoryStatus.SUCCESS,
             },
           ],
-          { session }, // create() with array needs session as second parameter
+          { session },
         );
+
+        // Log price change
+        const oldPrice = updatedBook.promotionalPrice || 0;
+        const priceChanged = oldPrice !== newPrice;
 
         if (priceChanged) {
           const change = newPrice - oldPrice;
@@ -167,7 +162,6 @@ export class PriceUpdateConsumerService {
       );
       throw error;
     } finally {
-      // Always end session
       await session.endSession();
     }
   }
@@ -194,7 +188,7 @@ export class PriceUpdateConsumerService {
         return;
       }
 
-      // Save failed record (no transaction needed because only insert 1 record)
+      // Save failed record
       await this.priceHistoryModel.create({
         bookId: bookObjectId,
         externalId,

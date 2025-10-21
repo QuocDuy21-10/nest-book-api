@@ -126,15 +126,16 @@ export class PriceCrawlerService {
         return null;
       }
 
-      // return {
-      //   promotionalPrice: response.data.price || 0,
-      //   originalPrice: response.data.original_price || response.data.price || 0,
-      // };
-
       return {
-        promotionalPrice: 100000,
-        originalPrice: 200000,
+        promotionalPrice: response.data.price || null,
+        originalPrice:
+          response.data.original_price || response.data.price || null,
       };
+
+      // return {
+      //   promotionalPrice: 100000,
+      //   originalPrice: 200000,
+      // };
     } catch (error) {
       if (retryCount < this.MAX_RETRIES && this.isRetryableError(error)) {
         this.logger.warn(

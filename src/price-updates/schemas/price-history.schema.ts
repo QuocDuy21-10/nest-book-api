@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { Book } from 'src/books/schemas/book.schema';
+import { PriceHistoryStatus } from '../enums/price-history-status.enum';
 
 export type PriceHistoryDocument = HydratedDocument<PriceHistory>;
 
@@ -38,8 +39,12 @@ export class PriceHistory {
   @Prop()
   crawlJobId?: string;
 
-  @Prop({ default: 'SUCCESS' })
-  status: string;
+  @Prop({
+    type: String,
+    enum: Object.values(PriceHistoryStatus),
+    default: PriceHistoryStatus.SUCCESS,
+  })
+  status: PriceHistoryStatus;
 
   @Prop()
   errorMessage?: string;
