@@ -1,93 +1,120 @@
-version: '3.8'
-
 services:
   mongodb:
-    image: mongo:7.0
-    container_name: nest-mongodb
-    command: mongod --replSet rs0 --bind_ip_all --keyFile /data/mongo-keyfile
+    image: mongo:${MONGO_VERSION:-7.0}
+    container_name: ${MONGO_CONTAINER_NAME:-nest-mongodb}
+    command: mongod --replSet ${MONGO_REPLICA_SET:-rs0} --bind_ip_all --keyFile /data/mongo-keyfile
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: 123456
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     ports:
-      - '27017:27017'
+      - '${MONGO_PORT:-27017}:27017'
     volumes:
-      - mongodb:/data/db
+      - mongodb_data:/data/db
       - ./mongo-keyfile:/data/mongo-keyfile:ro
+    networks:
+      - nest-network
     restart: unless-stopped
 
-  # Helper container to initialize replica set
   mongo-setup:
-    image: mongo:7.0
-    container_name: mongo-setup
+    image: mongo:${MONGO_VERSION:-7.0}
+    container_name: ${MONGO_SETUP_CONTAINER_NAME:-mongo-setup}
     depends_on:
       - mongodb
     entrypoint: >
       bash -c "
-        sleep 10 &&
-        mongosh --host mongodb:27017 -u root -p 123456 --authenticationDatabase admin --eval '
+        sleep 5 &&
+        mongosh --host ${MONGO_CONTAINER_NAME:-nest-mongodb}:27017 -u ${MONGO_ROOT_USERNAME} -p ${MONGO_ROOT_PASSWORD} --authenticationDatabase admin --eval '
           try {
             var status = rs.status();
             print(\"Replica set already initialized\");
           } catch (err) {
-            if (err.message.includes(\"no replset config\")) {
+            if (err.message.includes(\"no replset config\") || err.message.includes(\"NotYetInitialized\")) {
               rs.initiate({
-                _id: \"rs0\",
-                members: [{ _id: 0, host: \"mongodb:27017\" }]
+                _id: \"${MONGO_REPLICA_SET:-rs0}\",
+                members: [{ _id: 0, host: \"${MONGO_CONTAINER_NAME:-nest-mongodb}:27017\" }]
               });
               print(\"Replica set initialized successfully\");
             }
           }
         '
       "
+    networks:
+      - nest-network
     restart: 'no'
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.1
-    container_name: zookeeper
+    image: confluentinc/cp-zookeeper:${ZOOKEEPER_VERSION:-7.6.1}
+    container_name: ${ZOOKEEPER_CONTAINER_NAME:-zookeeper}
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
     ports:
-      - '2181:2181'
+      - '${ZOOKEEPER_CLIENT_PORT:-2181}:2181'
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - nest-network
     restart: unless-stopped
 
   kafka:
-    image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka
+    image: confluentinc/cp-kafka:${KAFKA_VERSION:-7.6.1}
+    container_name: ${KAFKA_CONTAINER_NAME:-kafka}
     depends_on:
       - zookeeper
     ports:
-      - '9092:9092'
-      - '29092:29092'
+      - '${KAFKA_EXTERNAL_PORT:-9092}:9092'
+      - '${KAFKA_INTERNAL_PORT:-29092}:29092'
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
+      KAFKA_ZOOKEEPER_CONNECT: ${ZOOKEEPER_CONTAINER_NAME:-zookeeper}:${ZOOKEEPER_CLIENT_PORT:-2181}
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_ADVERTISED_HOST:-localhost}:${KAFKA_EXTERNAL_PORT:-9092},PLAINTEXT_INTERNAL://${KAFKA_CONTAINER_NAME:-kafka}:${KAFKA_INTERNAL_PORT:-29092}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-1}
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS:-true}
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - nest-network
     restart: unless-stopped
 
   be-nest:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nest-backend
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: ${NEST_CONTAINER_NAME:-nest-backend}
     environment:
-      - PORT=8080
-      - NODE_ENV=production
-      - MONGO_URL=mongodb://root:123456@mongodb:27017/nest-book-management?authSource=admin&replicaSet=rs0&directConnection=true
-      - JWT_ACCESS_TOKEN_SECRET=d3d3b7a544f849e7b2f6b8c9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9
-      - JWT_ACCESS_EXPIRES_IN=7d
-      - KAFKA_BROKER=kafka:29092
+      - PORT=${PORT:-8080}
+      - NODE_ENV=${NODE_ENV:-production}
+      - MONGO_URL=${MONGO_URL_DOCKER}
+      - JWT_ACCESS_TOKEN_SECRET=${JWT_ACCESS_TOKEN_SECRET}
+      - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN:-7d}
+      - KAFKA_BROKER=${KAFKA_BROKER_DOCKER}
+      - COUNT_BOOKS=${COUNT_BOOKS:-4}
     ports:
-      - '8080:8080'
+      - '${PORT:-8080}:${PORT:-8080}'
     depends_on:
       - mongodb
       - mongo-setup
       - kafka
+    networks:
+      - nest-network
     restart: unless-stopped
 
 volumes:
-  mongodb:
+  mongodb_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_logs:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  nest-network:
+    driver: bridge

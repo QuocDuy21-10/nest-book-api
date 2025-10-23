@@ -21,13 +21,13 @@ docker compose down -v
 ## Bước 3: Start tất cả - replica set sẽ tự động init
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Bước 4: Kiểm tra log của container `mongo-setup`
 
 ```bash
-docker-compose logs mongo-setup
+docker compose logs mongo-setup
 ```
 
 ## Bước 5: Kiểm tra replica set
