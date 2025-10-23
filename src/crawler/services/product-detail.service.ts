@@ -7,7 +7,14 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Book, BookDocument } from 'src/books/schemas/book.schema';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
-import { CRAWL_PRODUCT_DETAIL, KAFKA_SERVICE } from 'src/common/constants';
+import {
+  ACCEPT,
+  CRAWL_PRODUCT_DETAIL,
+  KAFKA_SERVICE,
+  TIKI_DETAIL_API,
+  TIKI_ORIGIN_BASE,
+  USER_AGENT,
+} from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
 import { AuthorsService } from 'src/authors/authors.service';
 import mongoose from 'mongoose';
@@ -16,7 +23,6 @@ import mongoose from 'mongoose';
 export class ProductDetailCrawlerService {
   private readonly logger = new Logger(ProductDetailCrawlerService.name);
   private readonly axiosInstance: AxiosInstance;
-  private readonly TIKI_DETAIL_API = 'https://tiki.vn/api/v2/products';
   private readonly REQUEST_TIMEOUT = 10000;
   private readonly MAX_RETRIES = 2;
   private readonly MAX_RETRY_ATTEMPTS = 3;
@@ -29,12 +35,11 @@ export class ProductDetailCrawlerService {
   ) {
     this.axiosInstance = axios.create({
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'application/json, text/plain, */*',
+        'User-Agent': USER_AGENT,
+        Accept: ACCEPT,
         'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
-        Referer: 'https://tiki.vn/',
-        Origin: 'https://tiki.vn',
+        Referer: TIKI_ORIGIN_BASE,
+        Origin: TIKI_ORIGIN_BASE,
       },
       timeout: this.REQUEST_TIMEOUT,
       maxRedirects: 0,
@@ -53,7 +58,7 @@ export class ProductDetailCrawlerService {
       };
 
       const response = await this.axiosInstance.get(
-        `${this.TIKI_DETAIL_API}/${productId}`,
+        `${TIKI_DETAIL_API}/${productId}`,
         { params },
       );
 

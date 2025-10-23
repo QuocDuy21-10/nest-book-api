@@ -10,6 +10,7 @@ import {
   CRAWL_PRODUCT_LIST,
   JOB_TYPE,
   KAFKA_SERVICE,
+  USER_AGENT,
 } from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
 import mongoose from 'mongoose';
@@ -22,7 +23,7 @@ export class CrawlerService {
     'https://tiki.vn/api/personalish/v1/blocks/listings';
   private readonly TIKI_CATEGORY = '839'; // Literature category
   private readonly BOOKS_PER_PAGE = 40;
-  private readonly MAX_PAGES = 3;
+  private readonly MAX_PAGES = 1;
   private readonly SOURCE_NAME = 'Tiki';
   private readonly BULK_BATCH_SIZE = 100;
 
@@ -33,8 +34,7 @@ export class CrawlerService {
   ) {
     this.axiosInstance = axios.create({
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+        'User-Agent': USER_AGENT,
       },
     });
   }
