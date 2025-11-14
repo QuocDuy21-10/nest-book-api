@@ -5,8 +5,8 @@ import * as bcrypt from 'bcryptjs';
 import { RegisterUserDto } from 'src/users/dto/create-user.dto';
 import { ConfigService } from '@nestjs/config';
 import { IUser } from 'src/users/users.interface';
-import { Response } from 'express';
-import { ms} from 'ms';
+import { response, Response } from 'express';
+import ms from 'ms';
 
 @Injectable()
 export class AuthService {
@@ -42,20 +42,31 @@ export class AuthService {
     };
   }
 
-  async login(user: IUser) {
-    const { _id, name, email } = user;
-    const payload = { _id, name, email };
+  async login(user: IUser, response: Response) {
+    const { _id, name, email,refreshTokenVersion  } = user;
+    const payload = { sub: 'token login', iss: 'from server', _id, name, email, refreshTokenVersion };
+    const refresh_token = this.createRefreshToken(payload);
+
+    // update user with refresh token
+    this.usersService.updateUserToken(_id, refresh_token);
+
+    // set refresh token as cookies
+    response.cookie('refresh_token', refresh_token, {
+      httpOnly: true,
+      maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRES_IN')),
+    });
+
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        _id,
-        name,
-        email,
-      },
+      user: { _id, name, email },
     };
   }
+  
+  async logoutAll(userId: string) {
+    await this.usersService.incRefreshTokenVersion(userId);
+  }
 
-  async refreshAccessToken(refreshToken: string, response: Response, user : IUser) {
+  async refreshAccessToken(refreshToken: string, response: Response) {
     try {
       this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
@@ -66,8 +77,8 @@ export class AuthService {
       if (!user) {
         throw new BadRequestException('Refresh token không hợp lệ. Vui lòng đăng nhập lại');
       } else {
-        const { _id, name, email } = user;
-        const payload = { sub: 'token refresh', iss: 'from server', _id, name, email };
+        const { _id, name, email, refreshTokenVersion } = user;
+        const payload = { sub: 'token refresh', iss: 'from server', _id, name, email, refreshTokenVersion  };
         const refresh_token = this.createRefreshToken(payload);
 
         // update user with refresh token

@@ -21,13 +21,13 @@ docker compose down -v
 ## Bước 3: Khởi động MongoDB
 
 ```bash
-docker-compose up -d mongodb
+docker compose up -d mongodb
 ```
 
 ## Bước 4: Xem nhật ký
 
 ```bash
-docker-compose logs -f mongodb
+docker compose logs -f mongodb
 ```
 
 ## Bước 5: Khởi tạo bộ bản sao
@@ -51,7 +51,7 @@ exit
 ## Bước 6: Khởi động toàn bộ
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 <!--

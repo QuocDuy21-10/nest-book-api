@@ -1,3 +1,4 @@
+
 import { Controller, Post, Body, Req, UseGuards, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public, ResponseMessage, User } from 'src/decorator/customize';
@@ -16,8 +17,8 @@ export class AuthController {
   @ApiBody({ type: LoginUserDto })
   @Post('/login')
   @ResponseMessage('Login')
-  handleLogin(@Req() req) {
-    return this.authService.login(req.user);
+  handleLogin(@Req() req,@Res({ passthrough: true }) response: Response) {
+    return this.authService.login(req.user, response);
   }
 
   @Public()
@@ -30,8 +31,15 @@ export class AuthController {
   @Public()
   @Post('/refresh-token')
   @ResponseMessage('Refresh access token')
-  handleRefreshToken(@Req() request : Request, @Res({ passthrough: true }) response : Response, @User() user: IUser) {
+  handleRefreshToken(@Req() request : Request, @Res({ passthrough: true }) response : Response) {
     const refreshToken = request.cookies['refresh_token'];
-    return this.authService.refreshAccessToken(refreshToken, response, user);
+    return this.authService.refreshAccessToken(refreshToken, response);
+  }
+
+  @Post('/logout-all')
+  @ResponseMessage('Logout from all devices')
+  async logoutAll(@User() user: IUser) {
+    await this.authService.logoutAll(user._id);
+    return { message: 'Logged out from all devices' };
   }
 }

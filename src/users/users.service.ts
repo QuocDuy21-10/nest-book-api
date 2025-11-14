@@ -1,6 +1,6 @@
+
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateUserDto, RegisterUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { RegisterUserDto } from './dto/create-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
@@ -48,7 +48,6 @@ export class UsersService {
     return this.userModel.findByIdAndUpdate(
       { _id: userId },
       { refreshToken },
-      { new: true },
     );
   }
   
@@ -58,6 +57,13 @@ export class UsersService {
 
   isValidPassword(password: string, hash: string) {
     return compareSync(password, hash);
+  }
+
+  async incRefreshTokenVersion(userId: string) {
+    return this.userModel.findByIdAndUpdate(
+      { _id: userId },
+      { $inc: { refreshTokenVersion: 1 } }
+    );
   }
 
   private validateObjectId(id: string): void {

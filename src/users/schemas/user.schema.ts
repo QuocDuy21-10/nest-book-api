@@ -14,6 +14,9 @@ export class User {
   @Prop({ required: true })
   password: string;
 
+  @Prop({ default: 0 })
+  refreshTokenVersion: number;
+
   @Prop()
   refreshToken?: string;
 
