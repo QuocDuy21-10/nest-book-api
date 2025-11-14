@@ -15,6 +15,9 @@ export class User {
   password: string;
 
   @Prop()
+  refreshToken?: string;
+
+  @Prop()
   createdAt: Date;
 
   @Prop()

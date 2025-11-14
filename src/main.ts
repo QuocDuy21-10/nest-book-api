@@ -8,6 +8,7 @@ import { TransformInterceptor } from './core/transform.interceptor';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_CONSUMER_GROUP_ID } from './common/constants';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -45,6 +46,18 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+    // config cors
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+    credentials: true,
+  });
+
+    // config cookie parser
+  app.use(cookieParser());
 
   // config global prefix
   app.setGlobalPrefix('api');

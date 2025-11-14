@@ -5,6 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { compareSync, genSaltSync, hashSync } from 'bcryptjs';
+import mongoose from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -37,31 +38,31 @@ export class UsersService {
     });
     return newUser;
   }
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+
+  findUserByRefreshToken(refreshToken: string) {
+    return this.userModel.findOne({ refreshToken });
   }
 
-  findAll() {
-    return `This action returns all users`;
+  updateUserToken(userId: string, refreshToken: string) {
+    this.validateObjectId(userId);
+    return this.userModel.findByIdAndUpdate(
+      { _id: userId },
+      { refreshToken },
+      { new: true },
+    );
   }
-
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
-
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
-  }
-
+  
   findOneByUsername(username: string) {
     return this.userModel.findOne({ email: username });
   }
 
   isValidPassword(password: string, hash: string) {
     return compareSync(password, hash);
+  }
+
+  private validateObjectId(id: string): void {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid ID format');
+    }
   }
 }

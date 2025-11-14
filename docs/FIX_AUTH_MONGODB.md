@@ -18,12 +18,43 @@ chmod 400 mongo-keyfile
 docker compose down -v
 ```
 
-## Bước 3: Start tất cả - replica set sẽ tự động init
+## Bước 3: Khởi động MongoDB
 
 ```bash
-docker compose up -d
+docker-compose up -d mongodb
 ```
 
+## Bước 4: Xem nhật ký
+
+```bash
+docker-compose logs -f mongodb
+```
+
+## Bước 5: Khởi tạo bộ bản sao
+
+```bash
+docker exec -it nest-mongodb mongosh -u root -p 123456 --authenticationDatabase admin
+Trong mongosh:
+rs.initiate({
+\_id: "rs0",
+members: [{ _id: 0, host: "mongodb:27017" }]
+})
+
+// Kiểm tra
+rs.status()
+
+// Thoát
+exit
+
+```
+
+## Bước 6: Khởi động toàn bộ
+
+```bash
+docker-compose up -d
+```
+
+<!--
 ## Bước 4: Kiểm tra log của container `mongo-setup`
 
 ```bash
@@ -36,4 +67,4 @@ docker compose logs mongo-setup
 # Truy cập Mongo Shell
 docker exec -it nest-mongodb mongosh -u root -p 123456 --authenticationDatabase admin --eval "rs.status()"
 
-```
+``` -->
