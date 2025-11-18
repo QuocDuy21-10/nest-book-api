@@ -42,15 +42,15 @@ export class AuthService {
     };
   }
 
-  async login(user: IUser, response: Response) {
-    const { _id, name, email,refreshTokenVersion  } = user;
+async login( user: IUser, response: Response, ip?: string, device?: string) {
+    const { _id, name, email, refreshTokenVersion } = user;
     const payload = { sub: 'token login', iss: 'from server', _id, name, email, refreshTokenVersion };
+    
     const refresh_token = this.createRefreshToken(payload);
 
-    // update user with refresh token
-    this.usersService.updateUserToken(_id, refresh_token);
+    await this.usersService.createSession(_id.toString(), refresh_token, device, ip);
 
-    // set refresh token as cookies
+    // Set cookie
     response.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRES_IN')),
@@ -62,44 +62,38 @@ export class AuthService {
     };
   }
   
-  async logoutAll(userId: string) {
-    await this.usersService.incRefreshTokenVersion(userId);
+  async logout(refreshToken: string, response: Response) {
+      await this.usersService.deleteSession(refreshToken);
+      response.clearCookie('refresh_token');
+      return 'Logout success';
+  }
+  
+  async logoutAll(userId: string, response: Response) {
+      await this.usersService.logoutAll(userId);
+      response.clearCookie('refresh_token');
+      return 'Logout from all devices success';
   }
 
-  async refreshAccessToken(refreshToken: string, response: Response) {
-    try {
-      this.jwtService.verify(refreshToken, {
-        secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
-      });
+async refreshAccessToken(user: any, oldRefreshToken: string, response: Response) {
+    
+    await this.usersService.deleteSession(oldRefreshToken);
 
-      const user = await this.usersService.findUserByRefreshToken(refreshToken);
+    const { _id, name, email, refreshTokenVersion } = user;
+    const payload = { sub: 'token refresh', iss: 'from server', _id, name, email, refreshTokenVersion };
+    
+    const newRefreshToken = this.createRefreshToken(payload);
 
-      if (!user) {
-        throw new BadRequestException('Refresh token không hợp lệ. Vui lòng đăng nhập lại');
-      } else {
-        const { _id, name, email, refreshTokenVersion } = user;
-        const payload = { sub: 'token refresh', iss: 'from server', _id, name, email, refreshTokenVersion  };
-        const refresh_token = this.createRefreshToken(payload);
+    await this.usersService.createSession(_id.toString(), newRefreshToken);
 
-        // update user with refresh token
-        this.usersService.updateUserToken(_id.toString(), refresh_token);
+    response.clearCookie('refresh_token');
+    response.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRES_IN')),
+    });
 
-        // delete old refresh token
-        response.clearCookie('refresh_token');
-
-        // set refresh token as cookies
-        response.cookie('refresh_token', refresh_token, {
-          httpOnly: true,
-          maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRES_IN')),
-        });
-
-        return {
-          access_token: this.jwtService.sign(payload),
-        };
-      }
-    } catch (error) {
-      throw new BadRequestException('Refresh token không hợp lệ. Vui lòng đăng nhập lại');
-    }
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
   }
 
     createRefreshToken(payload: any) {

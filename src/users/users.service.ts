@@ -6,11 +6,13 @@ import { User, UserDocument } from './schemas/user.schema';
 import type { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { compareSync, genSaltSync, hashSync } from 'bcryptjs';
 import mongoose from 'mongoose';
+import { Session, SessionDocument } from 'src/auth/schemas/session.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
+    @InjectModel(Session.name) private sessionModel: SoftDeleteModel<SessionDocument>, 
   ) {}
   hashPassword(password: string) {
     const salt = genSaltSync(10);
@@ -42,13 +44,29 @@ export class UsersService {
   findUserByRefreshToken(refreshToken: string) {
     return this.userModel.findOne({ refreshToken });
   }
+  async findOne(id: string) {
+      return this.userModel.findById(id);
+  }
 
-  updateUserToken(userId: string, refreshToken: string) {
-    this.validateObjectId(userId);
-    return this.userModel.findByIdAndUpdate(
-      { _id: userId },
-      { refreshToken },
-    );
+  async createSession(userId: string, refreshToken: string, device?: string, ipAddress?: string) {
+    return this.sessionModel.create({
+      user: userId,
+      refreshToken,
+      device,     
+      ipAddress, 
+    });
+  }
+
+  async findSessionByToken(refreshToken: string) {
+    return this.sessionModel.findOne({ refreshToken }).populate('user');
+  }
+
+  async deleteSession(refreshToken: string) {
+    return this.sessionModel.deleteOne({ refreshToken });
+  }
+  
+  async deleteSessionByUserId(userId: string) {
+      return this.sessionModel.deleteMany({ user: userId });
   }
   
   findOneByUsername(username: string) {
@@ -57,6 +75,11 @@ export class UsersService {
 
   isValidPassword(password: string, hash: string) {
     return compareSync(password, hash);
+  }
+
+  async logoutAll(userId: string) {
+    await this.deleteSessionByUserId(userId); 
+    await this.incRefreshTokenVersion(userId);
   }
 
   async incRefreshTokenVersion(userId: string) {

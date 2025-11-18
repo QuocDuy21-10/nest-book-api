@@ -89,7 +89,7 @@ async function bootstrap() {
   Logger.log('Microservices started successfully');
   await app.listen(configService.get<string>('PORT') || 3000);
   Logger.log(
-    `Application is running on port ${configService.get<string>('PORT')}`,
+    `Application is running on port http://localhost:${configService.get<string>('PORT')}/swagger`,
   );
 }
 bootstrap();
