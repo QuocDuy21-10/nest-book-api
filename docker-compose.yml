@@ -2,7 +2,6 @@ services:
   mongodb:
     image: mongo:${MONGO_VERSION:-7.0}
     container_name: ${MONGO_CONTAINER_NAME:-nest-mongodb}
-    command: mongod --replSet ${MONGO_REPLICA_SET:-rs0} --bind_ip_all --keyFile /data/mongo-keyfile
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
@@ -10,34 +9,82 @@ services:
       - '${MONGO_PORT:-27017}:27017'
     volumes:
       - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
       - ./mongo-keyfile:/data/mongo-keyfile:ro
     networks:
       - nest-network
+    command: >
+      bash -c "
+        chmod 400 /data/mongo-keyfile || true &&
+        chown 999:999 /data/mongo-keyfile || true &&
+        exec docker-entrypoint.sh mongod --replSet ${MONGO_REPLICA_SET:-rs0} --bind_ip_all --keyFile /data/mongo-keyfile
+      "
+    healthcheck:
+      test: |
+        mongosh --quiet --eval "db.adminCommand('ping')" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     restart: unless-stopped
 
-  mongo-setup:
+  mongo-init:
     image: mongo:${MONGO_VERSION:-7.0}
-    container_name: ${MONGO_SETUP_CONTAINER_NAME:-mongo-setup}
+    container_name: ${MONGO_SETUP_CONTAINER_NAME:-mongo-init}
     depends_on:
-      - mongodb
-    entrypoint: >
-      bash -c "
-        sleep 5 &&
-        mongosh --host ${MONGO_CONTAINER_NAME:-nest-mongodb}:27017 -u ${MONGO_ROOT_USERNAME} -p ${MONGO_ROOT_PASSWORD} --authenticationDatabase admin --eval '
+      mongodb:
+        condition: service_healthy
+    entrypoint: ['/bin/bash', '-c']
+    command:
+      - |
+        echo '🔧 Initializing MongoDB Replica Set...'
+        sleep 5
+
+        # Try to initialize replica set
+        mongosh --host ${MONGO_CONTAINER_NAME:-nest-mongodb}:27017 \
+          -u ${MONGO_ROOT_USERNAME} \
+          -p ${MONGO_ROOT_PASSWORD} \
+          --authenticationDatabase admin \
+          --quiet --eval '
           try {
-            var status = rs.status();
-            print(\"Replica set already initialized\");
+            const status = rs.status();
+            if (status.ok === 1) {
+              print("Replica set already initialized");
+            }
           } catch (err) {
-            if (err.message.includes(\"no replset config\") || err.message.includes(\"NotYetInitialized\")) {
-              rs.initiate({
-                _id: \"${MONGO_REPLICA_SET:-rs0}\",
-                members: [{ _id: 0, host: \"${MONGO_CONTAINER_NAME:-nest-mongodb}:27017\" }]
+            if (err.codeName === "NotYetInitialized") {
+              print(" Initializing replica set...");
+              const result = rs.initiate({
+                _id: "${MONGO_REPLICA_SET:-rs0}",
+                members: [{ _id: 0, host: "${MONGO_CONTAINER_NAME:-nest-mongodb}:27017" }]
               });
-              print(\"Replica set initialized successfully\");
+              if (result.ok === 1) {
+                print("Replica set initialized successfully");
+                
+                // Wait for primary election
+                let attempts = 0;
+                while (attempts < 30) {
+                  try {
+                    const status = rs.status();
+                    const primary = status.members.find(m => m.stateStr === "PRIMARY");
+                    if (primary) {
+                      print("Primary elected: " + primary.name);
+                      break;
+                    }
+                  } catch (e) {}
+                  sleep(1000);
+                  attempts++;
+                }
+              }
+            } else {
+              print("Error: " + err.message);
+              quit(1);
             }
           }
         '
-      "
+
+        echo 'MongoDB Replica Set setup complete!'
     networks:
       - nest-network
     restart: 'no'
@@ -55,13 +102,19 @@ services:
       - zookeeper_logs:/var/lib/zookeeper/log
     networks:
       - nest-network
+    healthcheck:
+      test: nc -z localhost 2181 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:${KAFKA_VERSION:-7.6.1}
     container_name: ${KAFKA_CONTAINER_NAME:-kafka}
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - '${KAFKA_EXTERNAL_PORT:-9092}:9092'
       - '${KAFKA_INTERNAL_PORT:-29092}:29092'
@@ -78,6 +131,11 @@ services:
       - kafka_data:/var/lib/kafka/data
     networks:
       - nest-network
+    healthcheck:
+      test: kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   be-nest:
@@ -85,12 +143,12 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NODE_ENV: ${NODE_ENV:-production}
+        NODE_ENV: development
     container_name: ${NEST_CONTAINER_NAME:-nest-backend}
     environment:
       - PORT=${PORT:-8080}
-      - NODE_ENV=${NODE_ENV:-production}
-      - MONGO_URL=${MONGO_URL_DOCKER}
+      - NODE_ENV=${NODE_ENV:-development}
+      - MONGO_URL=${MONGO_URL}
       - JWT_ACCESS_TOKEN_SECRET=${JWT_ACCESS_TOKEN_SECRET}
       - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN}
       - JWT_REFRESH_TOKEN_SECRET=${JWT_REFRESH_TOKEN_SECRET}
@@ -99,16 +157,23 @@ services:
       - COUNT_BOOKS=${COUNT_BOOKS:-4}
     ports:
       - '${PORT:-8080}:${PORT:-8080}'
+    volumes:
+      - .:/app
+      - /app/node_modules
     depends_on:
-      - mongodb
-      - mongo-setup
-      - kafka
+      mongo-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     networks:
       - nest-network
+    command: npm run start:dev
     restart: unless-stopped
 
 volumes:
   mongodb_data:
+    driver: local
+  mongodb_config:
     driver: local
   zookeeper_data:
     driver: local

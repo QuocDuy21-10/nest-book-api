@@ -36,8 +36,8 @@ docker compose logs -f mongodb
 docker exec -it nest-mongodb mongosh -u root -p 123456 --authenticationDatabase admin
 Trong mongosh:
 rs.initiate({
-\_id: "rs0",
-members: [{ _id: 0, host: "mongodb:27017" }]
+  _id: "rs0",
+  members: [{ _id: 0, host: "mongodb:27017" }]
 })
 
 // Kiểm tra
