@@ -18,7 +18,7 @@ export class AuthController {
   @ApiBody({ type: LoginUserDto })
   @Post('/login')
   @ResponseMessage('Login')
-  handleLogin(@Req() req, @Res({ passthrough: true }) response: Response, @Ip() ip: string ) {
+  handleLogin(@Req() req , @Res({ passthrough: true }) response: Response, @Ip() ip: string ) {
     const device = req.headers['user-agent'] || 'Unknown Device';
     return this.authService.login(req.user, response, ip, device );
   }
@@ -36,7 +36,9 @@ export class AuthController {
   @ResponseMessage('Refresh access token')
   handleRefreshToken(@Req() request: Request, @User() user, @Res({ passthrough: true }) response: Response) {
     const refreshToken = request.cookies['refresh_token'];
-    return this.authService.refreshAccessToken(user, refreshToken, response);
+    const device = request.headers['user-agent'] || 'Unknown Device';
+    const ip = request.ip || 'Unknown IP';
+    return this.authService.refreshAccessToken(user, refreshToken, device, ip, response);
   }
 
   @Post('/logout')
@@ -48,8 +50,14 @@ export class AuthController {
 
   @Post('/logout-all')
   @ResponseMessage('Logout from all devices')
-  async logoutAll(@User() user: IUser, @Res({ passthrough: true }) response: Response) {
-    const result = await this.authService.logoutAll(user._id, response);
-    return result;
+  async logoutAll(
+      @User() user: IUser, 
+      @Req() request: Request,
+      @Res({ passthrough: true }) response: Response
+  ) {
+    const refreshToken = request.cookies['refresh_token'];
+    const device = request.headers['user-agent'] || 'Unknown Device';
+    const ip = request.ip || 'Unknown IP';
+    return this.authService.logoutAll(user._id, refreshToken, device, ip, response);
   }
 }

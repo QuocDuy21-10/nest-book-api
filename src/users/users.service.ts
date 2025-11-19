@@ -82,6 +82,13 @@ export class UsersService {
     await this.incRefreshTokenVersion(userId);
   }
 
+  async deleteUserSessionsExcept(userId: string, currentRefreshToken: string) {
+    return this.sessionModel.deleteMany({
+      user: userId,
+      refreshToken: { $ne: currentRefreshToken }, 
+    });
+  }
+
   async incRefreshTokenVersion(userId: string) {
     return this.userModel.findByIdAndUpdate(
       { _id: userId },

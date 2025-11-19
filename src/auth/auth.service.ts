@@ -68,13 +68,35 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
       return 'Logout success';
   }
   
-  async logoutAll(userId: string, response: Response) {
-      await this.usersService.logoutAll(userId);
-      response.clearCookie('refresh_token');
-      return 'Logout from all devices success';
+  async logoutAll(userId: string,currentRefreshToken: string, device: string, ip: string, response: Response) {
+    await this.usersService.deleteUserSessionsExcept(userId, currentRefreshToken);
+    await this.usersService.incRefreshTokenVersion(userId);
+    await this.usersService.deleteSession(currentRefreshToken);
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const { _id, name, email, refreshTokenVersion } = user as any;
+
+    const payload = { sub: 'token refresh', iss: 'from server', _id, name, email, refreshTokenVersion };
+    
+    const newRefreshToken = this.createRefreshToken(payload);
+
+    await this.usersService.createSession(_id.toString(), newRefreshToken, device, ip);
+     response.clearCookie('refresh_token');
+    response.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRES_IN')),
+    });
+
+    // 5. Trả về Access Token mới
+    return {
+      access_token: this.jwtService.sign(payload),
+      message: 'Logged out from other devices. Your session is updated.',
+    };
   }
 
-async refreshAccessToken(user: any, oldRefreshToken: string, response: Response) {
+async refreshAccessToken(user: any, oldRefreshToken: string, device: string, ip: string, response: Response) {
     
     await this.usersService.deleteSession(oldRefreshToken);
 
@@ -83,7 +105,7 @@ async refreshAccessToken(user: any, oldRefreshToken: string, response: Response)
     
     const newRefreshToken = this.createRefreshToken(payload);
 
-    await this.usersService.createSession(_id.toString(), newRefreshToken);
+    await this.usersService.createSession(_id.toString(), newRefreshToken, device, ip);
 
     response.clearCookie('refresh_token');
     response.cookie('refresh_token', newRefreshToken, {
