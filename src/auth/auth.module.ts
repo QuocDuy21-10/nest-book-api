@@ -8,11 +8,18 @@ import { UsersModule } from 'src/users/users.module';
 import { LocalStrategy } from './passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
 import { JwtRefreshStrategy } from './passport/jwt-refresh.strategy';
+import { JwtRsaStrategy } from './passport/jwt-rsa.strategy';
+import { MongooseModule } from '@nestjs/mongoose';
+import { KeyToken, KeyTokenSchema } from './schemas/key-token.schema';
+import { KeyTokenService } from './services/key-token.service';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
+    MongooseModule.forFeature([
+      { name: KeyToken.name, schema: KeyTokenSchema },
+    ]),
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
@@ -24,6 +31,14 @@ import { JwtRefreshStrategy } from './passport/jwt-refresh.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy],
+  providers: [
+    AuthService, 
+    KeyTokenService,
+    LocalStrategy, 
+    JwtStrategy, 
+    JwtRefreshStrategy,
+    JwtRsaStrategy,
+  ],
+  exports: [KeyTokenService], 
 })
 export class AuthModule {}

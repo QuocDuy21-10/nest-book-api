@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { IUser } from 'src/users/users.interface';
 import { response, Response } from 'express';
 import ms from 'ms';
+import { KeyTokenService } from './services/key-token.service';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +16,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private keyTokenService: KeyTokenService,
   ) {}
   hashPassword(password: string) {
     const salt = bcrypt.genSaltSync(10);
@@ -124,5 +127,87 @@ async refreshAccessToken(user: any, oldRefreshToken: string, device: string, ip:
       expiresIn: ms(this.configService.get<string>('JWT_REFRESH_EXPIRES_IN')) / 1000,
     });
     return refresh_token;
+  }
+
+  async loginRSA(user: IUser): Promise<{ access_token: string; user: any; keyId: string }> {
+    const { _id, name, email, refreshTokenVersion } = user;
+
+    const keyId = randomUUID();
+
+    // Generate RSA Key Pair 
+    const { privateKey, publicKey } = this.keyTokenService.generateKeyPair();
+
+    await this.keyTokenService.savePublicKey(_id.toString(), publicKey, keyId);
+
+    const payload = {
+      sub: 'token login rsa',
+      iss: 'from server',
+      jti: keyId, 
+      _id,
+      name,
+      email,
+      refreshTokenVersion,
+    };
+
+    const access_token = this.jwtService.sign(payload, {
+      secret: privateKey,
+      algorithm: 'RS256',
+      expiresIn: '1h', 
+    });
+
+    return {
+      access_token,
+      user: { _id, name, email },
+      keyId, 
+    };
+  }
+
+  async verifyRSAToken(token: string): Promise<any> {
+    try {
+      // Decode JWT header to get jti (without verifying)
+      const decoded = this.jwtService.decode(token, { complete: true }) as any;
+      
+      if (!decoded || !decoded.payload.jti) {
+        throw new BadRequestException('Invalid token format');
+      }
+
+      const { jti, _id } = decoded.payload;
+
+      const publicKey = await this.keyTokenService.getPublicKey(_id, jti);
+
+      if (!publicKey) {
+        throw new BadRequestException('Public key not found or revoked');
+      }
+
+      const payload = this.jwtService.verify(token, {
+        secret: publicKey,
+        algorithms: ['RS256'],
+      });
+
+      // Check refreshTokenVersion (log out all)
+      const user = await this.usersService.findOne(_id);
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      if (user.refreshTokenVersion > payload.refreshTokenVersion) {
+        throw new BadRequestException('Token revoked (Logout All executed)');
+      }
+
+      return payload;
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new BadRequestException('Token expired');
+      }
+      if (error.name === 'JsonWebTokenError') {
+        throw new BadRequestException('Invalid token');
+      }
+      throw error;
+    }
+  }
+
+  //  Revoke all keys of a user
+  async revokeAllRSAKeys(userId: string): Promise<number> {
+    return this.keyTokenService.revokeAllUserKeys(userId);
   }
 }

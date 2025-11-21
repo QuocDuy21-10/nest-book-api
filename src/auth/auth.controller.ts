@@ -1,5 +1,5 @@
 
-import { Controller, Post, Body, Req, UseGuards, Res, Ip } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, Res, Ip, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public, ResponseMessage, User } from 'src/decorator/customize';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
@@ -8,6 +8,7 @@ import { LocalAuthGuard } from './local-auth.guard';
 import type { Response, Request } from 'express';
 import type { IUser } from 'src/users/users.interface';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtRsaAuthGuard } from './jwt-rsa-auth.guard';
 
 @ApiTags('Auth APIs')
 @Controller('auth')
@@ -59,5 +60,39 @@ export class AuthController {
     const device = request.headers['user-agent'] || 'Unknown Device';
     const ip = request.ip || 'Unknown IP';
     return this.authService.logoutAll(user._id, refreshToken, device, ip, response);
+  }
+
+  // RSA JWT AUTHENTICATION ENDPOINTS
+
+  @Public()
+  @UseGuards(LocalAuthGuard)
+  @ApiBody({ type: LoginUserDto })
+  @Post('/login-rsa')
+  @ResponseMessage('Login with RSA JWT')
+  async handleLoginRSA(@Req() req) {
+    return this.authService.loginRSA(req.user);
+  }
+
+  @Public()
+  @UseGuards(JwtRsaAuthGuard)
+  @Get('/profile')
+  @ResponseMessage('Get user profile')
+  async getProfile(@User() user: IUser) {
+    return {
+      user,
+      message: 'This route is protected by RSA JWT authentication',
+    };
+  }
+
+  @Public()
+  @UseGuards(JwtRsaAuthGuard)
+  @Post('/rsa/logout-all')
+  @ResponseMessage('Revoke all RSA keys')
+  async revokeAllRSAKeys(@User() user: IUser) {
+    const revokedCount = await this.authService.revokeAllRSAKeys(user._id);
+    return {
+      message: `Revoked ${revokedCount} RSA keys successfully`,
+      revokedCount,
+    };
   }
 }
