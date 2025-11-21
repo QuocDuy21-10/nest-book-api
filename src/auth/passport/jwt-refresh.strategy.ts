@@ -3,13 +3,13 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
-import { UsersService } from 'src/users/users.service';
+import { SessionsService } from 'src/sessions/sessions.service';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(
     private configService: ConfigService,
-    private usersService: UsersService,
+    private sessionsService: SessionsService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -26,7 +26,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     const refreshToken = req.cookies?.refresh_token;
     
     // Kiểm tra xem Session này có tồn tại trong DB không (phòng trường hợp user đã logout)
-    const session = await this.usersService.findSessionByToken(refreshToken);
+    const session = await this.sessionsService.findSessionByToken(refreshToken);
     
     if (!session) {
       throw new UnauthorizedException('Refresh token is not valid or session expired');

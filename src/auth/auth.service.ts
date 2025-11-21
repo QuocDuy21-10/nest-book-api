@@ -9,6 +9,7 @@ import { response, Response } from 'express';
 import ms from 'ms';
 import { KeyTokenService } from './services/key-token.service';
 import { randomUUID } from 'crypto';
+import { SessionsService } from 'src/sessions/sessions.service';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +18,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private keyTokenService: KeyTokenService,
+    private sessionsService: SessionsService,
   ) {}
   hashPassword(password: string) {
     const salt = bcrypt.genSaltSync(10);
@@ -51,7 +53,7 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
     
     const refresh_token = this.createRefreshToken(payload);
 
-    await this.usersService.createSession(_id.toString(), refresh_token, device, ip);
+    await this.sessionsService.createSession(_id.toString(), refresh_token, device, ip);
 
     // Set cookie
     response.cookie('refresh_token', refresh_token, {
@@ -66,15 +68,15 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
   }
   
   async logout(refreshToken: string, response: Response) {
-      await this.usersService.deleteSession(refreshToken);
+      await this.sessionsService.deleteSession(refreshToken);
       response.clearCookie('refresh_token');
       return 'Logout success';
   }
   
   async logoutAll(userId: string,currentRefreshToken: string, device: string, ip: string, response: Response) {
-    await this.usersService.deleteUserSessionsExcept(userId, currentRefreshToken);
+    await this.sessionsService.deleteUserSessionsExcept(userId, currentRefreshToken);
     await this.usersService.incRefreshTokenVersion(userId);
-    await this.usersService.deleteSession(currentRefreshToken);
+    await this.sessionsService.deleteSession(currentRefreshToken);
     const user = await this.usersService.findOne(userId);
     if (!user) {
       throw new BadRequestException('User not found');
@@ -85,7 +87,7 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
     
     const newRefreshToken = this.createRefreshToken(payload);
 
-    await this.usersService.createSession(_id.toString(), newRefreshToken, device, ip);
+    await this.sessionsService.createSession(_id.toString(), newRefreshToken, device, ip);
      response.clearCookie('refresh_token');
     response.cookie('refresh_token', newRefreshToken, {
       httpOnly: true,
@@ -101,14 +103,14 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
 
 async refreshAccessToken(user: any, oldRefreshToken: string, device: string, ip: string, response: Response) {
     
-    await this.usersService.deleteSession(oldRefreshToken);
+    await this.sessionsService.deleteSession(oldRefreshToken);
 
     const { _id, name, email, refreshTokenVersion } = user;
     const payload = { sub: 'token refresh', iss: 'from server', _id, name, email, refreshTokenVersion };
     
     const newRefreshToken = this.createRefreshToken(payload);
 
-    await this.usersService.createSession(_id.toString(), newRefreshToken, device, ip);
+    await this.sessionsService.createSession(_id.toString(), newRefreshToken, device, ip);
 
     response.clearCookie('refresh_token');
     response.cookie('refresh_token', newRefreshToken, {

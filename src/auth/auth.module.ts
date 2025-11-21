@@ -12,10 +12,12 @@ import { JwtRsaStrategy } from './passport/jwt-rsa.strategy';
 import { MongooseModule } from '@nestjs/mongoose';
 import { KeyToken, KeyTokenSchema } from './schemas/key-token.schema';
 import { KeyTokenService } from './services/key-token.service';
+import { SessionsModule } from 'src/sessions/sessions.module';
 
 @Module({
   imports: [
     UsersModule,
+    SessionsModule,
     PassportModule,
     MongooseModule.forFeature([
       { name: KeyToken.name, schema: KeyTokenSchema },
