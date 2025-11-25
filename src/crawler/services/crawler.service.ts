@@ -40,7 +40,7 @@ export class CrawlerService {
   }
 
   async triggerCrawl(): Promise<{ jobId: mongoose.Types.ObjectId }> {
-    const jobId = await this.jobService.createJob(JOB_TYPE);
+    const jobId = await this.jobService.createJob({ type: JOB_TYPE });
     this.logger.log(`Crawler job triggered: ${jobId}`);
 
     // Emit event to Kafka for list crawling

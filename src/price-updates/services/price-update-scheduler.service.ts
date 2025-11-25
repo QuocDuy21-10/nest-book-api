@@ -39,7 +39,7 @@ export class PriceUpdateSchedulerService {
     jobId: mongoose.Types.ObjectId;
     totalBooks: number;
   }> {
-    const jobId = await this.jobService.createJob(PRICE_UPDATE_JOB_TYPE);
+    const jobId = await this.jobService.createJob({ type: PRICE_UPDATE_JOB_TYPE });
     this.logger.log(`Price update job created: ${jobId}`);
 
     try {

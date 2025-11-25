@@ -4,7 +4,10 @@ export const KAFKA_CONSUMER_GROUP_ID = 'nest-book-api-logs';
 export const PRICE_UPDATE_SERVICE = 'price-update-service';
 export const PRICE_UPDATE_CONSUMER_GROUP = 'price-update-consumer-group';
 
+// Job Types
 export const JOB_TYPE = 'CRAWL_TIKI_BOOKS';
+export const JOB_TYPE_MANUAL = 'MANUAL_JOB';
+export const JOB_TYPE_SCHEDULED = 'SCHEDULED_JOB';
 
 export const CRAWL_PRODUCT_DETAIL = 'crawl-product-detail';
 export const CRAWL_PRODUCT_LIST = 'crawl-product-list';
