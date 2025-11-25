@@ -48,8 +48,8 @@ export class AuthService {
   }
 
 async login( user: IUser, response: Response, ip?: string, device?: string) {
-    const { _id, name, email, refreshTokenVersion } = user;
-    const payload = { sub: 'token login', iss: 'from server', _id, name, email, refreshTokenVersion };
+    const { _id, name, email, refreshTokenVersion, role } = user;
+    const payload = { sub: 'token login', iss: 'from server', _id, name, email, refreshTokenVersion, role };
     
     const refresh_token = this.createRefreshToken(payload);
 
@@ -63,7 +63,7 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
 
     return {
       access_token: this.jwtService.sign(payload),
-      user: { _id, name, email },
+      user: { _id, name, email, role },
     };
   }
   
@@ -132,7 +132,7 @@ async refreshAccessToken(user: any, oldRefreshToken: string, device: string, ip:
   }
 
   async loginRSA(user: IUser): Promise<{ access_token: string; user: any; keyId: string }> {
-    const { _id, name, email, refreshTokenVersion } = user;
+    const { _id, name, email, refreshTokenVersion, role } = user;
 
     const keyId = randomUUID();
 
@@ -148,6 +148,7 @@ async refreshAccessToken(user: any, oldRefreshToken: string, device: string, ip:
       _id,
       name,
       email,
+      role,
       refreshTokenVersion,
     };
 

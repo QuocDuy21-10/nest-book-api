@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   SetMetadata,
 } from '@nestjs/common';
+import { UserRole } from '../users/enums/user-role.enum';
 
 export const RESPONSE_MESSAGE = 'response_message';
 export const ResponseMessage = (message: string) =>
@@ -10,6 +11,9 @@ export const ResponseMessage = (message: string) =>
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
 
 export const User = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {

@@ -65,6 +65,7 @@ export class JwtRsaStrategy extends PassportStrategy(Strategy, 'jwt-rsa') {
         _id,
         name,
         email,
+        role: user.role, // Include role from database
         refreshTokenVersion: user.refreshTokenVersion,
         jti: payload.jti, // Keep keyId for possible revocation later
       };

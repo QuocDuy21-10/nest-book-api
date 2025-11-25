@@ -29,12 +29,13 @@ private readonly usersService: UsersService, // Inject Service
     if (user.refreshTokenVersion > payload.refreshTokenVersion) {
        throw new UnauthorizedException('Token revoked (Logout All executed)');
     }
-    const { _id, name, email } = payload;
+    const { _id, name, email, role } = payload;
     //req.user
     return {
       _id,
       name,
       email,
+      role,
       refreshTokenVersion: user.refreshTokenVersion
     };
   }

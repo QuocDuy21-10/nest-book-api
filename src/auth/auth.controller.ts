@@ -4,11 +4,11 @@ import { AuthService } from './auth.service';
 import { Public, ResponseMessage, User } from 'src/decorator/customize';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { LoginUserDto, RegisterUserDto } from 'src/users/dto/create-user.dto';
-import { LocalAuthGuard } from './local-auth.guard';
+import { LocalAuthGuard } from './guard/local-auth.guard';
 import type { Response, Request } from 'express';
 import type { IUser } from 'src/users/users.interface';
 import { AuthGuard } from '@nestjs/passport';
-import { JwtRsaAuthGuard } from './jwt-rsa-auth.guard';
+import { JwtRsaAuthGuard } from './guard/jwt-rsa-auth.guard';
 
 @ApiTags('Auth APIs')
 @Controller('auth')

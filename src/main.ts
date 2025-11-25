@@ -5,7 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { TransformInterceptor } from './core/transform.interceptor';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_CONSUMER_GROUP_ID } from './common/constants';
 import cookieParser from 'cookie-parser';
