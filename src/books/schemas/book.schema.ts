@@ -23,6 +23,9 @@ export class Book {
   @Prop({ default: false })
   isPremium: boolean;
 
+  @Prop({ default: true })
+  isAvailable: boolean;
+
   @Prop()
   externalId?: string;
 

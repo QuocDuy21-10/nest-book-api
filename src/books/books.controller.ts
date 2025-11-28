@@ -10,6 +10,7 @@ import {
   Req,
   UseInterceptors,
   Inject,
+  UseGuards,
 } from '@nestjs/common';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
@@ -22,18 +23,22 @@ import {
   ApiOperation,
   ApiQuery,
   ApiTags,
+  ApiForbiddenResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import {
   OptionalAuth,
-  Public,
   ResponseMessage,
   User,
+  Roles,
 } from 'src/decorator/customize';
 import type { IUser } from 'src/users/users.interface';
 import type { Request } from 'express';
 import { LoggingInterceptor } from 'src/core/logging.interceptor';
 import { KAFKA_SERVICE } from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
+import { RolesGuard } from 'src/auth/guard/roles.guard';
+import { UserRole } from 'src/users/enums/user-role.enum';
 
 @ApiTags('Books APIs')
 @Controller('books')
@@ -44,15 +49,18 @@ export class BooksController {
     @Inject(KAFKA_SERVICE) private kafkaClient: ClientKafka,
   ) {}
 
-  // Create a new book
   @Post()
+  @UseGuards( RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary: 'Create new book',
     description:
-      'Create a new book with the following information: title, description, author, publishedYear, ...',
+      'Create a new book with the following information: title, description, author, publishedYear, ... (LIBRARIAN or ADMIN only)',
   })
   @ApiCreatedResponse({ type: Object, description: 'Create book' })
   @ApiBadRequestResponse({ description: 'Validation fail' })
+  @ApiUnauthorizedResponse({ description: 'Not authenticated' })
+  @ApiForbiddenResponse({ description: 'Not authorized - LIBRARIAN role required' })
   @ResponseMessage('Create book')
   create(
     @Body() createBookDto: CreateBookDto,
@@ -110,12 +118,16 @@ export class BooksController {
 
   // Update book information by ID
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.LIBRARIAN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Update book',
-    description: 'Update information of a book by ID',
+    description: 'Update information of a book by ID (LIBRARIAN or ADMIN only)',
   })
   @ApiOkResponse({ description: 'Update book', type: Object })
   @ApiBadRequestResponse({ description: 'Validation fail' })
+  @ApiUnauthorizedResponse({ description: 'Not authenticated' })
+  @ApiForbiddenResponse({ description: 'Not authorized - LIBRARIAN role required' })
   @ResponseMessage('Update book')
   update(
     @Param('id') id: string,
@@ -128,12 +140,16 @@ export class BooksController {
 
   // Delete a book by ID
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary: 'Delete book',
-    description: 'Delete a book by ID',
+    description: 'Delete a book by ID (LIBRARIAN or ADMIN only)',
   })
   @ApiOkResponse({ description: 'Delete book' })
   @ApiNotFoundResponse({ description: 'Book not found' })
+  @ApiUnauthorizedResponse({ description: 'Not authenticated' })
+  @ApiForbiddenResponse({ description: 'Not authorized - LIBRARIAN role required' })
   @ResponseMessage('Delete book successfully')
   remove(@Param('id') id: string, @User() user: IUser, @Req() req: Request) {
     this.booksService.remove(id, user, req.ip);
