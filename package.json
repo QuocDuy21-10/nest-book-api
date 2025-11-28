@@ -25,7 +25,9 @@
     "docker:prod": "docker compose -f docker-compose.prod.yml up -d",
     "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
     "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f be-nest",
-    "seed": "ts-node src/databases/seeds/seed.ts"
+    "seed": "ts-node src/databases/seeds/seed.ts",
+    "seed2": "ts-node -r tsconfig-paths/register src/scripts/seed.ts",
+    "seed:clear": "ts-node -r tsconfig-paths/register src/scripts/seed-clear.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.0.0",
