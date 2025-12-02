@@ -15,6 +15,7 @@ import { CrawlerModule } from './crawler/crawler.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PriceUpdateModule } from './price-updates/price-updates.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PriceUpdateModule } from './price-updates/price-updates.module';
     CrawlerModule,
     JobsModule,
     PriceUpdateModule,
+    RolesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

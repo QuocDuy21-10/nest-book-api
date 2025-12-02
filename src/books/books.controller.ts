@@ -31,6 +31,7 @@ import {
   ResponseMessage,
   User,
   Roles,
+  RequirePermissions,
 } from 'src/decorator/customize';
 import type { IUser } from 'src/users/users.interface';
 import type { Request } from 'express';
@@ -38,11 +39,14 @@ import { LoggingInterceptor } from 'src/core/logging.interceptor';
 import { KAFKA_SERVICE } from 'src/common/constants';
 import { ClientKafka } from '@nestjs/microservices';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { UserRole } from 'src/users/enums/user-role.enum';
+import { SystemRole } from 'src/roles/constants/role.constants';
+import { PermissionsGuard } from 'src/auth/guard/permissions.guard';
+import { Permission } from 'src/roles/enums/permission.enum';
 
 @ApiTags('Books APIs')
 @Controller('books')
 @UseInterceptors(LoggingInterceptor)
+@UseGuards(PermissionsGuard)
 export class BooksController {
   constructor(
     private readonly booksService: BooksService,
@@ -50,8 +54,9 @@ export class BooksController {
   ) {}
 
   @Post()
-  @UseGuards( RolesGuard)
-  @Roles(UserRole.ADMIN)
+  // @UseGuards( RolesGuard)
+  // @Roles(SystemRole.ADMIN)
+  @RequirePermissions(Permission.BOOK_CREATE)
   @ApiOperation({
     summary: 'Create new book',
     description:
@@ -71,6 +76,7 @@ export class BooksController {
   }
 
   // Get list of books with pagination and filtering
+  @RequirePermissions(Permission.BOOK_LIST)
   @OptionalAuth()
   @Get()
   @ApiOperation({
@@ -105,6 +111,7 @@ export class BooksController {
   // Get book details by ID
   @OptionalAuth()
   @Get(':id')
+  @RequirePermissions(Permission.BOOK_READ)
   @ApiOperation({
     summary: 'Get book detail',
     description: 'Get details of a book by ID',
@@ -118,8 +125,8 @@ export class BooksController {
 
   // Update book information by ID
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.LIBRARIAN, UserRole.ADMIN)
+  @RequirePermissions(Permission.BOOK_UPDATE)
+  // @Roles(SystemRole.LIBRARIAN, SystemRole.ADMIN)
   @ApiOperation({
     summary: 'Update book',
     description: 'Update information of a book by ID (LIBRARIAN or ADMIN only)',
@@ -140,8 +147,9 @@ export class BooksController {
 
   // Delete a book by ID
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
+  // @UseGuards(RolesGuard)
+  // @Roles(SystemRole.ADMIN)
+  @RequirePermissions(Permission.BOOK_DELETE)
   @ApiOperation({
     summary: 'Delete book',
     description: 'Delete a book by ID (LIBRARIAN or ADMIN only)',

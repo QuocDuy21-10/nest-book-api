@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from 'src/users/users.module';
+import { RolesModule } from 'src/roles/roles.module';
 import { LocalStrategy } from './passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
 import { JwtRefreshStrategy } from './passport/jwt-refresh.strategy';
@@ -17,6 +18,7 @@ import { SessionsModule } from 'src/sessions/sessions.module';
 @Module({
   imports: [
     UsersModule,
+    RolesModule,
     SessionsModule,
     PassportModule,
     MongooseModule.forFeature([

@@ -10,6 +10,7 @@ import ms from 'ms';
 import { KeyTokenService } from './services/key-token.service';
 import { randomUUID } from 'crypto';
 import { SessionsService } from 'src/sessions/sessions.service';
+import { RolesService } from 'src/roles/roles.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private configService: ConfigService,
     private keyTokenService: KeyTokenService,
     private sessionsService: SessionsService,
+    private rolesService: RolesService,
   ) {}
   hashPassword(password: string) {
     const salt = bcrypt.genSaltSync(10);
@@ -33,7 +35,18 @@ export class AuthService {
         user.password,
       );
       if (isValid) {
-        return user;
+        let permissions: any[] = [];
+        try {
+          const roleData = await this.rolesService.findByName(user.role);
+          permissions = roleData?.permissions || [];
+        } catch (error) {
+          console.log(`Role ${user.role} not found in roles collection`);
+        }
+        
+        return {
+          ...user.toObject(),
+          permissions,
+        };
       }
     }
     return null;
@@ -48,7 +61,7 @@ export class AuthService {
   }
 
 async login( user: IUser, response: Response, ip?: string, device?: string) {
-    const { _id, name, email, refreshTokenVersion, role } = user;
+    const { _id, name, email, refreshTokenVersion, role, permissions } = user;
     const payload = { sub: 'token login', iss: 'from server', _id, name, email, refreshTokenVersion, role };
     
     const refresh_token = this.createRefreshToken(payload);
@@ -63,7 +76,7 @@ async login( user: IUser, response: Response, ip?: string, device?: string) {
 
     return {
       access_token: this.jwtService.sign(payload),
-      user: { _id, name, email, role },
+      user: { _id, name, email, role, permissions },
     };
   }
   

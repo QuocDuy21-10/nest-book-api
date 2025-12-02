@@ -1,9 +1,11 @@
-import { UserRole } from './enums/user-role.enum';
+import { Permission } from 'src/roles/enums/permission.enum';
+import { SystemRole } from '../roles/constants/role.constants';
 
 export interface IUser {
   _id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: SystemRole;
   refreshTokenVersion: number;
+  permissions: Permission[];
 }

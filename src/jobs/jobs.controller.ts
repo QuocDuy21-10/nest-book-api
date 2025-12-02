@@ -25,7 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtRsaAuthGuard } from 'src/auth/guard/jwt-rsa-auth.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { UserRole } from 'src/users/enums/user-role.enum';
+import { SystemRole } from 'src/roles/constants/role.constants';
 import { CreateJobDto } from './dto/create-job.dto';
 import { TriggerJobDto } from './dto/trigger-job.dto';
 import { QueryJobsDto } from './dto/query-jobs.dto';
@@ -38,7 +38,7 @@ export class JobsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(SystemRole.ADMIN)
   @ApiOperation({
     summary: 'Create a new job',
     description: 'Create a new job with the specified type. ADMIN only.',
@@ -56,7 +56,7 @@ export class JobsController {
 
   @Post('trigger')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(SystemRole.ADMIN)
   @ApiOperation({
     summary: 'Trigger/start a job',
     description:
@@ -108,7 +108,7 @@ export class JobsController {
 
   @Delete(':id/cancel')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(SystemRole.ADMIN)
   @ApiOperation({
     summary: 'Cancel a job',
     description: 'Cancel a pending or processing job. ADMIN only.',

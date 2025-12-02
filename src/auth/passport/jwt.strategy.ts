@@ -4,12 +4,15 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IUser } from 'src/users/users.interface';
 import { UsersService } from 'src/users/users.service';
+import { RolesService } from 'src/roles/roles.service';
+import { Permission } from 'src/roles/enums/permission.enum';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
-private readonly usersService: UsersService, // Inject Service
+    private readonly usersService: UsersService,
+    private readonly rolesService: RolesService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -29,14 +32,23 @@ private readonly usersService: UsersService, // Inject Service
     if (user.refreshTokenVersion > payload.refreshTokenVersion) {
        throw new UnauthorizedException('Token revoked (Logout All executed)');
     }
-    const { _id, name, email, role } = payload;
-    //req.user
+
+    let permissions: Permission[] = [];
+    try {
+      const roleData = await this.rolesService.findByName(user.role);
+      permissions = roleData?.permissions || [];
+    } catch (error) {
+      console.log(`Failed to load permissions for role ${user.role}`);
+    }
+
+    const { _id, name, email, role} = payload;
     return {
       _id,
       name,
       email,
       role,
-      refreshTokenVersion: user.refreshTokenVersion
+      refreshTokenVersion: user.refreshTokenVersion,
+      permissions, 
     };
   }
 }

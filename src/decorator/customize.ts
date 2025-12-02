@@ -3,7 +3,8 @@ import {
   ExecutionContext,
   SetMetadata,
 } from '@nestjs/common';
-import { UserRole } from '../users/enums/user-role.enum';
+import { SystemRole } from '../roles/constants/role.constants';
+import { Permission } from '../roles/enums/permission.enum';
 
 export const RESPONSE_MESSAGE = 'response_message';
 export const ResponseMessage = (message: string) =>
@@ -13,7 +14,11 @@ export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 export const ROLES_KEY = 'roles';
-export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
+export const Roles = (...roles: SystemRole[]) => SetMetadata(ROLES_KEY, roles);
+
+export const PERMISSIONS_KEY = 'permissions';
+export const RequirePermissions = (...permissions: Permission[]) =>
+  SetMetadata(PERMISSIONS_KEY, permissions);
 
 export const User = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
@@ -24,3 +29,4 @@ export const User = createParamDecorator(
 
 export const IS_OPTIONAL_AUTH = 'isOptionalAuth';
 export const OptionalAuth = () => SetMetadata(IS_OPTIONAL_AUTH, true);
+

@@ -3,7 +3,9 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { KeyTokenService } from '../services/key-token.service';
 import { UsersService } from 'src/users/users.service';
+import { RolesService } from 'src/roles/roles.service';
 import { IUser } from 'src/users/users.interface';
+import { Permission } from 'src/roles/enums/permission.enum';
 
 @Injectable()
 export class JwtRsaStrategy extends PassportStrategy(Strategy, 'jwt-rsa') {
@@ -12,6 +14,7 @@ export class JwtRsaStrategy extends PassportStrategy(Strategy, 'jwt-rsa') {
   constructor(
     private readonly keyTokenService: KeyTokenService,
     private readonly usersService: UsersService,
+    private readonly rolesService: RolesService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -60,14 +63,23 @@ export class JwtRsaStrategy extends PassportStrategy(Strategy, 'jwt-rsa') {
         throw new UnauthorizedException('Token revoked (Logout All executed)');
       }
 
+      let permissions: Permission[] = [];
+      try {
+        const roleData = await this.rolesService.findByName(user.role);
+        permissions = roleData?.permissions || [];
+      } catch (error) {
+        this.logger.warn(`Failed to load permissions for role ${user.role}`);
+      }
+
       const { _id, name, email } = payload;
       return {
         _id,
         name,
         email,
-        role: user.role, // Include role from database
+        role: user.role,
+        permissions, 
         refreshTokenVersion: user.refreshTokenVersion,
-        jti: payload.jti, // Keep keyId for possible revocation later
+        jti: payload.jti,
       };
     } catch (error) {
       this.logger.error('JWT validation failed', error.stack);
