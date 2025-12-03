@@ -4,10 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { TransformInterceptor } from './core/transform.interceptor';
-import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { KAFKA_CONSUMER_GROUP_ID } from './common/constants';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
@@ -16,27 +12,27 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // config kafka microservice
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.KAFKA,
-    options: {
-      client: {
-        brokers: [
-          configService.get<string>('KAFKA_BROKER') || 'localhost:9092',
-        ],
-      },
-      consumer: {
-        groupId: KAFKA_CONSUMER_GROUP_ID,
-        allowAutoTopicCreation: true,
-      },
-    },
-  });
+  // app.connectMicroservice<MicroserviceOptions>({
+  //   transport: Transport.KAFKA,
+  //   options: {
+  //     client: {
+  //       brokers: [
+  //         configService.get<string>('KAFKA_BROKER') || 'localhost:9092',
+  //       ],
+  //     },
+  //     consumer: {
+  //       groupId: KAFKA_CONSUMER_GROUP_ID,
+  //       allowAutoTopicCreation: true,
+  //     },
+  //   },
+  // });
 
-  // config jwt guard global
-  const reflector = app.get(Reflector);
-  app.useGlobalGuards(new JwtAuthGuard(reflector));
+  // // config jwt guard global
+  // const reflector = app.get(Reflector);
+  // app.useGlobalGuards(new JwtAuthGuard(reflector));
 
-  // config transform interceptor global
-  app.useGlobalInterceptors(new TransformInterceptor(reflector));
+  // // config transform interceptor global
+  // app.useGlobalInterceptors(new TransformInterceptor(reflector));
 
   // config validation pipe global
   app.useGlobalPipes(
@@ -79,17 +75,17 @@ async function bootstrap() {
     .addSecurityRequirements('token')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, documentFactory, {
+  SwaggerModule.setup('api', app, documentFactory, {
     swaggerOptions: {
       persistAuthorization: true,
     },
   });
 
-  await app.startAllMicroservices();
-  Logger.log('Microservices started successfully');
+  // await app.startAllMicroservices();
+  // Logger.log('Microservices started successfully');
   await app.listen(configService.get<string>('PORT') || 3000);
   Logger.log(
-    `Application is running on port http://localhost:${configService.get<string>('PORT')}/swagger`,
+    `Application is running on port http://localhost:${configService.get<string>('PORT')}/api`,
   );
 }
 bootstrap();
